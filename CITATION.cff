@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the accompanying paper."
+title: "MV-EAC: Multi-View Exploration-Aware Calibration for News Recommendation"
+authors:
+  - family-names: "Ferraz"
+    given-names: "Carolina Toledo"
+  - family-names: "Manzato"
+    given-names: "Marcelo Garcia"
+preferred-citation:
+  type: article
+  title: "Multi-View Exploration-Aware Calibration for Reducing Informational Concentration in News Recommendation"
+  authors:
+    - family-names: "Ferraz"
+      given-names: "Carolina Toledo"
+    - family-names: "Manzato"
+      given-names: "Marcelo Garcia"
+  journal: "Information Processing & Management"
+  # year/volume/pages/doi: fill in once the paper is accepted and published.

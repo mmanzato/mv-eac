@@ -1,0 +1,36 @@
+# Data and derived artifacts (large; see docs/data.md for how to regenerate).
+# data/results/*.csv IS tracked (see the exception below) -- those are small
+# (tens of KB) reference summary files, not the raw dataset, and are kept in
+# the repo as a reproducibility anchor: they are exactly what
+# tests/test_paper_consistency.py checks new runs against.
+/data/raw/
+/data/processed/
+/data/checkpoints/
+/data/logs/
+/data/figures/
+/data/results/lists/
+/data/results/per_impression_*.csv
+/data/results/val_grid_*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Environments
+.venv/
+venv/
+.env
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
