@@ -13,7 +13,8 @@ Stratification axes:
     1. user history-length quartile  (q_hist) -- cold vs. heavy users
     2. impression-timestamp quartile (q_ts)   -- early vs. late in the two-week window
 
-giving 4 x 4 = 16 strata. Sampling is proportional within each stratum.
+giving 4 x 4 = 16 strata. Allocation is EQUAL across strata (n_total // 16 per
+stratum, remainder to the first strata), not proportional to stratum size.
 """
 from __future__ import annotations
 
@@ -42,7 +43,10 @@ def _assign_strata(
 
 
 def _sample_proportionally(df: pd.DataFrame, n_total: int, seed: int) -> pd.DataFrame:
-    """Draw ``n_total`` rows from ``df``, split proportionally across its ``stratum`` values."""
+    """Draw ``n_total`` rows from ``df`` with EQUAL allocation across its ``stratum`` values.
+
+    (The historical name is kept for backward compatibility; the allocation is
+    not proportional to stratum size -- this reproduces the paper's subsamples.)"""
     rng = np.random.default_rng(seed)
     strata = df["stratum"].value_counts().sort_index()
     n_strata = len(strata)

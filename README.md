@@ -18,11 +18,12 @@ This project introduces:
   concentration that category-level diversity metrics miss.
 
 Evaluated on **EB-NeRD Large** with three base recommenders (Most Popular,
-ItemKNN, NRMS), MV-EAC is shown to be a robust, balanced default: it
-significantly reduces topic concentration and entity repetition beyond
-deterministic calibration alone, at negligible accuracy cost, while matching
-the strongest single-view alternative on accuracy and winning decisively on
-category-level diversity.
+ItemKNN, NRMS), MV-EAC is a balanced default rather than a uniformly
+dominant method: its exploration term lowers topic concentration beyond
+deterministic multi-view calibration in every base model at negligible accuracy
+cost, and against the strongest single view (Topic-EAC) it is tied on accuracy
+and entity repetition, higher on category-level diversity, and slightly higher
+on topic concentration.
 
 ## Quick start
 
@@ -43,6 +44,9 @@ python scripts/run_all.py
 
 # 3. (optional) also run the MCF baseline and the NRMS reproducibility check
 python scripts/run_all.py --with-mcf --with-nrms-variants
+
+# 4. (optional) reranking latency / profile-construction cost
+python scripts/11_latency_benchmark.py
 ```
 
 Every script under `scripts/` is independently runnable and resumable --
@@ -69,10 +73,13 @@ The test suite is split into two kinds:
   `data/results/test_summary.csv` contains, within a small numerical
   tolerance. It is skipped automatically if that file is not present rather
   than failing -- it never regenerates or modifies any result file. A small
-  set of reference result CSVs (`test_summary.csv`, `best_params.csv`,
-  `stats_full.csv` -- tens of KB, not the dataset itself) ships with the
-  repository under `data/results/` specifically so this check can run right
-  after cloning, before anyone has run the pipeline.
+  set of reference result CSVs (tens of KB, not the dataset itself) ships with
+  the repository under `data/results/`. These files are the outputs of the
+  research pipeline that produced the paper's numbers; the check therefore
+  verifies that a fresh run of *this* code reproduces them (after running the
+  pipeline, compare your `data/results/` against the shipped copies), not that
+  the shipped copies are self-consistent. The primary NRMS run's scores, which
+  cannot be regenerated bit-for-bit, are provided under `data/reference_scores/`.
 
 ## Repository layout
 

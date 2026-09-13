@@ -19,9 +19,11 @@ def entity_repetition_rate(
 ) -> float:
     """ERR@K = (total entity exposures - unique entities) / total entity exposures.
 
-    0 when every entity mentioned in the top-K list is unique; approaches 1 as
-    the same entities are repeated across articles. Returns 0 when the top-K
-    list carries no entity mentions at all.
+    Entity annotations are treated as a MULTISET (paper Eq. 13): an entity
+    annotated twice in the same article counts as two mentions, so within-article
+    repetition also counts. 0 when every entity mention in the top-K list is
+    distinct; approaches 1 as the same entities are repeated. Returns 0 when the
+    top-K list carries no entity mention at all (<0.005% of lists in EB-NeRD Large).
     """
     top_k = ranked_ids[:k]
     exposures: list[str] = []
@@ -72,7 +74,8 @@ def topic_concentration_index(
     a list actually reaches.
 
     0 = perfectly uniform over the vocabulary; 1 = every topic exposure is the
-    same single topic. Returns 0 when the top-K list carries no topic labels.
+    same single topic. TCI@K is an affine transform of HHI, so paired effect sizes
+    are identical for both. Returns 0 when the top-K list carries no topic labels.
     """
     freq = _topic_frequencies(ranked_ids, topic_map, k)
     total = sum(freq.values())

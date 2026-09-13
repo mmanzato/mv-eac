@@ -20,7 +20,7 @@ Section 4.4 / RQ1 for how these are reflected in the reported conclusions):
 1.  **Calibration direction.** The original paper penalizes
     ``KL(list || user)``. This project's own Trad-Cal/EAC (matching Steck,
     2018) instead uses ``KL(user || list)``, with the same epsilon-smoothing
-    convention throughout (``mveac.calibration.traditional.kl_divergence``).
+    convention used by the rerankers (``mveac.calibration.eac._kl_all``).
     We implement MCF against *our* direction and epsilon convention so the
     comparison is to an exact solver for the *same* objective, not a
     different one.
@@ -38,7 +38,10 @@ Section 4.4 / RQ1 for how these are reflected in the reported conclusions):
     itself optimizes, applied to a single item in isolation (the list-level
     KL term has no meaning for one item alone). This is a display-only
     heuristic: it never changes *which* K items are selected, only how the
-    fixed selected set is shown.
+    fixed selected set is shown. Consequence: on impressions with |R_u| <= K
+    (60.9% of the EB-NeRD Large test subsample) MCF and Trad-Cal necessarily
+    select the same set, so any NDCG@K difference between them there is due to
+    presentation order alone; the four set-level metrics are unaffected.
 
 3.  **Multi-label views (topic, entity): a single-assignment relaxation.**
     A unit of flow through an item's graph node can only take one outgoing
@@ -47,7 +50,9 @@ Section 4.4 / RQ1 for how these are reflected in the reported conclusions):
     with several simultaneous labels would need to "duplicate" its flow unit,
     which violates flow conservation). MCF is therefore an *exact* solver for
     the single-label views (category, sentiment) but only an *approximate*
-    one for the multi-label views (topic, entity); this is stated explicitly
+    one for the multi-label views (topic, entity), where label counts are also
+    normalized by the list size K rather than by the total number of label
+    exposures; this is stated explicitly
     wherever MCF-Topic/MCF-Entity results are reported. The final selected
     list is still scored with the true multi-label ERR@K/TCI@K/ILD@K metrics
     like every other method -- the relaxation affects only what the solver

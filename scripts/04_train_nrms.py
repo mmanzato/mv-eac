@@ -130,7 +130,10 @@ def run(tag: str, seed: int, train_sample: int) -> None:
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--tag", default="seed0", help="Identifies this training run's scores/checkpoint.")
-    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--seed", type=int, default=C.NRMS_PRIMARY_SAMPLE_SEED,
+                    help="Seeds the training sample AND the initialization. The paper's primary "
+                         "seed0 run used sample seed 42 with an unseeded initialization; its scores "
+                         "are provided in data/reference_scores/.")
     ap.add_argument("--train-sample", type=int, default=C.NRMS_TRAIN_SAMPLE)
     args = ap.parse_args()
     run(args.tag, args.seed, args.train_sample)

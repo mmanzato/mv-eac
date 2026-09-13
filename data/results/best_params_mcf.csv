@@ -1,0 +1,13 @@
+model,view,lambda
+most_popular,category,0.7
+most_popular,topic,0.7
+most_popular,entity,0.5
+most_popular,sentiment,0.9
+itemknn,category,0.9
+itemknn,topic,0.9
+itemknn,entity,0.5
+itemknn,sentiment,0.9
+nrms,category,0.7
+nrms,topic,0.5
+nrms,entity,0.1
+nrms,sentiment,0.9

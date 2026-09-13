@@ -5,7 +5,8 @@ Step 6 of 10 -- MAUT hyperparameter selection.
 Reads every ``val_grid_{model}_{method}.csv`` written by step 5 and picks one
 (lambda, beta) per (model, method) via the MAUT criterion (``mveac.evaluation.maut``):
 NDCG@K, Entropy, ERR@K, TCI@K at 0.25 weight each, beta capped at 0.9 with a
-small parsimony tolerance. Trad-Cal's lambda is selected independently from
+small parsimony tolerance (beta in {1.0,1.5,2.0} is evaluated only for the
+sensitivity table written to beta_sensitivity.csv). Trad-Cal's lambda is selected independently from
 the beta=0 slice of the same grid.
 
 Usage:
@@ -25,7 +26,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from mveac import config as C
-from mveac.evaluation.maut import maut_score, select_best_eac, select_best_traditional
+from mveac.evaluation.maut import maut_score, select_best_eac, select_best_traditional, select_unrestricted
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ log = logging.getLogger(__name__)
 
 def main() -> None:
     rows = []
+    sens_rows = []
     missing = []
     for model in C.MODELS:
         for method in C.GRID_METHODS:
@@ -49,6 +51,15 @@ def main() -> None:
             grid["maut_score"] = maut_score(grid)
             eac_best = select_best_eac(grid)
             trad_best = select_best_traditional(grid)
+            unrestricted = select_unrestricted(grid)
+            if (unrestricted["lambda"], unrestricted["beta"]) != (eac_best["lambda"], eac_best["beta"]):
+                sens_rows.append({
+                    "model": model, "method": method,
+                    "reported_lambda": float(eac_best["lambda"]), "reported_beta": float(eac_best["beta"]),
+                    "unrestricted_lambda": float(unrestricted["lambda"]),
+                    "unrestricted_beta": float(unrestricted["beta"]),
+                    **{f"delta_{m}": float(unrestricted[m] - eac_best[m]) for m in C.MAUT_METRICS},
+                })
 
             rows.append({
                 "model": model, "method": method,
@@ -65,8 +76,9 @@ def main() -> None:
     best = pd.DataFrame(rows)
     best.to_csv(C.RESULTS_DIR / "best_params.csv", index=False)
     log.info("Selected hyperparameters:\n%s", best.to_string(index=False))
-    log.info("beta capped at 0.9 for %d/%d configurations (paper Section 5.2 plateau finding)",
-              int((best.eac_beta <= 0.9).sum()), len(best))
+    pd.DataFrame(sens_rows).to_csv(C.RESULTS_DIR / "beta_sensitivity.csv", index=False)
+    log.info("%d/%d EAC selections would change if beta > 0.9 were eligible "
+             "(paper Table 'beta sensitivity'; written to beta_sensitivity.csv)", len(sens_rows), len(best))
 
 
 if __name__ == "__main__":

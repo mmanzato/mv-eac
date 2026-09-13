@@ -8,7 +8,14 @@ For each base model, evaluates:
     {view}_eac / traditional_{view}_eac           for view in {category, entity, topic, sentiment}
     mv_eac / traditional_mv_eac                    the 3-view V* = {category, entity, topic}
     ablation_{no_category,no_entity,no_topic}      RQ2: drop one V* view, redistribute its weight
+    mv4_at_mv3params                               RQ2: sentiment add-back (4 views @ 1/4, MV-EAC's lambda/beta)
     sweep_wtopic_{w}                               RQ4: continuous topic-weight sweep
+                                                   (w_topic = 0.00 is the same configuration as ablation_no_topic)
+
+With ``--nrms-tag <tag>`` (tag != seed0) only the NRMS reproducibility subset
+{original, topic_eac, entity_eac, mv_eac, traditional_mv_eac} is evaluated, at the
+seed0 (lambda, beta), and every output file name carries the tag
+(``per_impression_nrms_<tag>_<method>.csv``) so seed0 results are never overwritten.
 
 at the (lambda, beta) selected by step 6 (``best_params.csv``). For every
 configuration, writes one row per impression (with every metric --
@@ -85,15 +92,23 @@ def _load_shared(models: list[str], nrms_tag: str) -> None:
     log.info("Shared state loaded in %.1fs (test impressions=%d)", time.time() - t0, len(test_sub))
 
 
+def _base_model(model: str) -> str:
+    """'nrms_seed1' -> 'nrms' (variants share seed0's hyperparameters and candidate sets)."""
+    return model.split("_seed")[0].split("_large")[0]
+
+
 def _best_param(model: str, method: str, column: str) -> float:
     best = _SHARED["best"]
-    row = best[(best.model == model) & (best.method == method)]
+    row = best[(best.model == _base_model(model)) & (best.method == method)]
     return float(row[column].iloc[0])
 
 
-def _build_tasks(models: list[str]) -> list[tuple]:
+NRMS_VARIANT_METHODS = {"original", "topic_eac", "entity_eac", "mv_eac", "traditional_mv_eac"}
+
+
+def _build_tasks(models: list[str], nrms_tag: str = "seed0") -> list[tuple]:
     """Return (model, output_name, rerank_method, lambda, beta, weights) tuples for
-    every one of the paper's 24 configurations."""
+    every configuration reported in the paper (or the NRMS-variant subset)."""
     tasks = []
     for model in models:
         tasks.append((model, "original", "original", 0.0, 0.0, None))
@@ -112,9 +127,13 @@ def _build_tasks(models: list[str]) -> list[tuple]:
 
         for name, weights in C.ABLATION_CONFIGS.items():
             tasks.append((model, f"ablation_{name}", "mv_eac", mv_lam, mv_beta, weights))
+        tasks.append((model, "mv4_at_mv3params", "mv_eac", mv_lam, mv_beta, C.SENTIMENT_ADDBACK_WEIGHTS))
 
         for w_topic in C.WEIGHT_SWEEP:
             tasks.append((model, f"sweep_wtopic_{w_topic:.2f}", "mv_eac", mv_lam, mv_beta, C.sweep_weights(w_topic)))
+    if nrms_tag != "seed0":
+        tasks = [(f"nrms_{nrms_tag}", *t[1:]) for t in tasks
+                 if t[0] == "nrms" and t[1] in NRMS_VARIANT_METHODS]
     return tasks
 
 
@@ -126,7 +145,7 @@ def _run_one(task: tuple) -> dict:
 
     t0 = time.time()
     ranked = rerank_all(
-        _SHARED["scores"][model], _SHARED["test_sub"], _SHARED["user_profiles"],
+        _SHARED["scores"][_base_model(model)], _SHARED["test_sub"], _SHARED["user_profiles"],
         _SHARED["article_maps"], _SHARED["vocabs"], method=rerank_method,
         lam=lam, beta=beta, k=C.K, weights=weights, epsilon=C.KL_EPSILON,
     )
@@ -143,7 +162,7 @@ def _run_one(task: tuple) -> dict:
 
     per = per_impression(ranked, _SHARED["test_sub"], _SHARED["article_maps"], _SHARED["vocabs"],
                          _SHARED["category_vectors"], C.K)
-    candidate_counts = _SHARED["cand_counts"][model]
+    candidate_counts = _SHARED["cand_counts"][_base_model(model)]
     rows = []
     for imp_id, metrics in per.items():
         row = dict(metrics)
@@ -175,7 +194,7 @@ def main() -> None:
         return
 
     _load_shared(args.models, args.nrms_tag)
-    tasks = [t for t in _build_tasks(args.models) if t[0] in args.models]
+    tasks = [t for t in _build_tasks(args.models, args.nrms_tag) if _base_model(t[0]) in args.models]
     log.info("Configurations: %d (workers=%d)", len(tasks), args.workers)
 
     summary_path = C.RESULTS_DIR / (

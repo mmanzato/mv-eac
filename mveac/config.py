@@ -63,8 +63,9 @@ MODEL_DISPLAY = {"most_popular": "Pop", "itemknn": "KNN", "nrms": "NRMS"}
 # dataset): 50,000 impressions for hyperparameter selection (VAL_SUBSAMPLE) and
 # 500,000 impressions for the final reported evaluation (TEST_SUBSAMPLE).
 # Stratification is 2-way: user history-length quartile x impression-timestamp
-# quartile (4 x 4 = 16 strata), so that both cold/heavy users and early/late
-# impressions are represented proportionally in both subsamples.
+# quartile (4 x 4 = 16 strata), with EQUAL allocation (each stratum contributes
+# 1/16 of the subsample), so cold/heavy users and early/late impressions are all
+# represented -- evenly, not in population proportion.
 VAL_SUBSAMPLE = 50_000
 TEST_SUBSAMPLE = 500_000
 N_QUANTILES = 4  # quartiles per stratification axis
@@ -81,8 +82,11 @@ TEST_SAMPLE_SEED = RANDOM_SEED + 2
 #   - subcategory is excluded *upfront*: near-duplicate of category
 #     (NMI(category, subcategory) = 0.673 on the full corpus).
 #   - sentiment is evaluated as a full single-view candidate but excluded
-#     *empirically*: the RQ2 ablation shows it measurably degrades the
-#     3-view model on 4 of 5 metrics once included.
+#     *empirically*, under the paper's view-inclusion criterion (Section 5.4):
+#     a view is excluded if the model without it is never worse, by a
+#     non-negligible (|d| >= 0.10) effect, on any metric in any base model.
+#     Adding sentiment to the 3-view model at identical (lambda, beta)
+#     (SENTIMENT_ADDBACK_WEIGHTS) improves no metric non-negligibly.
 ALL_VIEWS = ["category", "subcategory", "entity", "topic", "sentiment"]
 CANDIDATE_VIEWS = ["category", "entity", "topic", "sentiment"]  # evaluated as single-view EAC
 MV_VIEWS = ["category", "entity", "topic"]                      # MV-EAC's retained set V*
@@ -115,6 +119,10 @@ ABLATION_CONFIGS: dict[str, dict[str, float]] = {
 WEIGHT_SWEEP = [0.0, 0.15, 0.50, 0.70, 0.85, 1.0]
 
 
+# RQ2 sentiment add-back: 4 views at 1/4, evaluated at MV-EAC's own (lambda, beta).
+SENTIMENT_ADDBACK_WEIGHTS = {"category": 0.25, "entity": 0.25, "topic": 0.25, "sentiment": 0.25}
+
+
 def sweep_weights(w_topic: float) -> dict[str, float]:
     """Return the 3-view weight vector for one point of the RQ4 sweep."""
     rest = (1.0 - w_topic) / 2.0
@@ -130,15 +138,13 @@ KL_EPSILON = 1e-10  # additive smoothing to keep KL(P||Q) finite when Q has zero
 # Validation grid: (lambda, beta) hyperparameter search
 # ---------------------------------------------------------------------------
 LAMBDA_GRID = [0.1, 0.3, 0.5, 0.7, 0.9]
-# beta is searched past its originally-considered upper bound (0.9) to confirm
-# the metric surface plateaus rather than being cut off at an unexplored
-# gradient (paper Section 5.2 / Figure "lambda-beta heatmap").
+# The SELECTION grid is beta <= 0.9. beta in {1.0, 1.5, 2.0} is also evaluated on
+# validation, but only as a sensitivity analysis (paper Section 5.2, Table
+# "beta sensitivity"); those points are never selected.
 BETA_GRID = [0.0, 0.01, 0.05, 0.1, 0.2, 0.5, 0.7, 0.9, 1.0, 1.5, 2.0]
 
-# Selected (lambda, beta) pairs are reported capped at beta <= BETA_CAP (the
-# plateau past this point buys no measurable metric improvement -- see
-# docs/pipeline.md, "Hyperparameter selection"), with a small parsimony
-# tolerance to break ties in favor of the smallest beta within reach of the
+# Selection is restricted to beta <= BETA_CAP, with a small parsimony tolerance
+# to break ties in favor of the smallest beta, then lambda, within reach of the
 # best MAUT score.
 BETA_CAP = 0.9
 PARSIMONY_TOL = 0.003
@@ -161,7 +167,9 @@ MAUT_EQUAL_WEIGHTS = {m: 0.25 for m in MAUT_METRICS}
 # Statistical testing
 # ---------------------------------------------------------------------------
 ALPHA = 0.05
-EFFECT_SIZE_THRESHOLDS = {"negligible": 0.10, "small": 0.50}  # |d| bands (Cohen, 1988)
+# |d_z| bands used throughout the paper. These are the authors' practical-relevance
+# thresholds, deliberately lower than Cohen's (1988) 0.2/0.5/0.8 benchmarks.
+EFFECT_SIZE_THRESHOLDS = {"negligible": 0.10, "small": 0.50}
 
 # ---------------------------------------------------------------------------
 # NRMS training
@@ -175,11 +183,16 @@ NRMS_NEG_RATIO = 4        # negatives sampled per positive during training
 NRMS_EPOCHS = 5
 NRMS_BATCH_SIZE = 128
 NRMS_LR = 1e-3
-NRMS_TRAIN_SAMPLE = 200_000   # impressions subsampled from the ~12M training behaviors
+NRMS_TRAIN_SAMPLE = 200_000   # impressions (simple random sample) from the ~12M training behaviors
+# The paper's primary NRMS run ("seed0") drew its training sample with seed 42 and did
+# NOT seed the parameter initialization, so it cannot be re-created bit-for-bit; its
+# val/test scores are shipped under data/reference_scores/ (see docs/pipeline.md).
+NRMS_PRIMARY_SAMPLE_SEED = RANDOM_SEED
 NRMS_CKPT = CKPT_DIR / "nrms_seed0.pt"
 
-# Reproducibility check (paper Section 5, "training-run variance"): the same
-# architecture retrained from three further independent instances.
+# Reproducibility check (paper Section 5.3, "training-run variance"): three further
+# instances, each with its own seed controlling BOTH the training sample and the
+# parameter initialization (so their spread mixes both sources of variance).
 NRMS_VARIANTS = {
     "seed1": {"seed": 1, "train_sample": NRMS_TRAIN_SAMPLE},
     "seed2": {"seed": 2, "train_sample": NRMS_TRAIN_SAMPLE},

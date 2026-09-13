@@ -103,3 +103,38 @@ class TestTCIRedefinitionFixedTheNRMSException:
         for _, row in rows.iterrows():
             assert row["significant_holm"], f"{row['model']}: expected significant after Holm correction"
             assert abs(row["d_impression"]) >= 0.10, f"{row['model']}: expected a non-negligible effect size"
+
+
+class TestViewInclusionCriterion:
+    """Paper Section 5.4: a candidate view is excluded if the model without it is never worse,
+    by a non-negligible (|d| >= 0.10) Holm-significant effect, on any metric in any base model."""
+
+    MINIMIZE = {"ERR@K", "TCI@K"}
+
+    def _stats(self):
+        path = C.RESULTS_DIR / "stats_full.csv"
+        if not path.exists():
+            pytest.skip("data/results/stats_full.csv not found")
+        return pd.read_csv(path)
+
+    def _worse_without(self, rows, removal: bool) -> bool:
+        """True if the smaller view set is non-negligibly worse on some metric in some model."""
+        for _, r in rows.iterrows():
+            if not (r["significant_holm"] and abs(r["d_impression"]) >= 0.10):
+                continue
+            # removal rows: a = variant WITHOUT the view; add-back rows: a = variant WITH the view
+            improvement_of_a = -r["d_impression"] if r["metric"] in self.MINIMIZE else r["d_impression"]
+            smaller_is_worse = improvement_of_a < 0 if removal else improvement_of_a > 0
+            if smaller_is_worse:
+                return True
+        return False
+
+    def test_category_topic_entity_retained_sentiment_excluded(self):
+        s = self._stats()
+        for view in ["category", "topic", "entity"]:
+            rows = s[(s.family == "E_Ablation_vs_MV") & (s.comparison == f"no_{view} vs mv_eac")]
+            assert len(rows) == 15
+            assert self._worse_without(rows, removal=True), f"{view} should be retained"
+        rows = s[(s.family == "H_SentimentAddBack")]
+        assert len(rows) == 15
+        assert not self._worse_without(rows, removal=False), "sentiment should be excluded"

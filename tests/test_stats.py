@@ -78,15 +78,19 @@ class TestCompare:
         result = compare(values, values, users)
         assert result["delta"] == pytest.approx(0.0)
 
-    def test_minimize_flag_flips_the_sign_convention(self):
-        # b is uniformly LOWER (better, for a minimize metric like ERR/TCI) than a.
-        a = pd.Series([2.0, 3.0, 4.0], index=[1, 2, 3])
+    def test_raw_sign_convention_and_improvement_sign(self):
+        # a is uniformly HIGHER than b (worse, for a minimize metric like ERR/TCI).
+        a = pd.Series([2.0, 3.1, 4.0], index=[1, 2, 3])
         b = pd.Series([1.0, 2.0, 3.0], index=[1, 2, 3])
         users = pd.Series(["u1", "u2", "u3"], index=[1, 2, 3])
         maximize_result = compare(a, b, users, minimize=False)
         minimize_result = compare(a, b, users, minimize=True)
-        # Same underlying data, opposite sign under the two conventions.
-        assert maximize_result["d_impression"] == pytest.approx(-minimize_result["d_impression"])
+        # d_impression is the raw-difference effect size in both cases (paper tables) ...
+        assert maximize_result["d_impression"] > 0
+        assert minimize_result["d_impression"] == pytest.approx(maximize_result["d_impression"])
+        # ... and the improvement-signed variant flips only for minimized metrics.
+        assert maximize_result["d_impression_improvement"] > 0
+        assert minimize_result["d_impression_improvement"] == pytest.approx(-maximize_result["d_impression"])
 
     def test_user_clustering_reduces_effective_sample_size(self):
         # Three impressions from the same two users -> only 2 user-level observations.

@@ -46,11 +46,13 @@ def select_best_eac(grid: pd.DataFrame, score_column: str = "maut_score") -> pd.
     Two refinements on top of a plain argmax, both documented in the paper
     (Section 4.6):
 
-    1. **Beta cap.** The validation grid searches beta past its originally
-       considered upper bound (up to 2.0) purely to confirm the metric
-       surface plateaus rather than being cut off at an unexplored gradient.
-       Reported configurations are still capped at ``beta <= BETA_CAP``
-       (0.9), since values beyond it buy no measurable improvement.
+    1. **Selection grid restricted to beta <= BETA_CAP (0.9).** The validation
+       grid is also evaluated at beta in {1.0, 1.5, 2.0}, but only as a
+       sensitivity analysis: those points are NOT eligible for selection
+       (they still enter the min-max normalization of the MAUT score). The
+       extension does not show a plateau -- without the restriction, 9 of the
+       15 EAC selections would move to beta > 0.9 (paper Section 5.2 and
+       ``select_unrestricted`` below).
     2. **Parsimony tie-break.** Within the capped grid, any row within
        ``PARSIMONY_TOL`` of the best score is treated as tied with it; among
        those, the smallest (beta, lambda) is preferred, so the reported
@@ -60,6 +62,14 @@ def select_best_eac(grid: pd.DataFrame, score_column: str = "maut_score") -> pd.
     capped = grid[grid["beta"] <= BETA_CAP]
     best = capped[score_column].max()
     tied = capped[capped[score_column] >= best - PARSIMONY_TOL]
+    return tied.sort_values(["beta", "lambda"]).iloc[0]
+
+
+def select_unrestricted(grid: pd.DataFrame, score_column: str = "maut_score") -> pd.Series:
+    """Same rule as ``select_best_eac`` but with every beta eligible -- used only for the
+    sensitivity table that shows how the selection would change without the cap."""
+    best = grid[score_column].max()
+    tied = grid[grid[score_column] >= best - PARSIMONY_TOL]
     return tied.sort_values(["beta", "lambda"]).iloc[0]
 
 

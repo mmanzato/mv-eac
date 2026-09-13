@@ -279,6 +279,13 @@ class NRMS:
 
     def _score_one(self, history: list[int], article_ids: list[int]) -> list[tuple[int, float]]:
         dim = self._embeddings.shape[1]
+        if not any(self._id2idx.get(aid) is not None for aid in history[-self.max_history:]):
+            # Cold-start fallback (users with no usable history, 16.9% of the paper's test
+            # impressions): an all-masked attention would return NaN logits. Return tied
+            # scores instead, which keeps the logged candidate order for the "Original"
+            # ranking and makes every reranker treat relevance as constant -- exactly
+            # what the paper's (NaN-producing) run did, now explicit. See paper Sec. 4.2.
+            return [(aid, 0.0) for aid in article_ids]
         hist = history[-self.max_history:]
         hist_arr = np.zeros((1, self.max_history, dim), dtype=np.float32)
         for i, aid in enumerate(hist):

@@ -1,9 +1,9 @@
 """
-KL-divergence calibration primitives (Steck, 2018) shared by every reranker
-in this package: Traditional calibration, EAC, and MCF all minimize the same
-divergence between a user's preference profile and the semantic-view
-distribution of their recommendation list; only *how* they minimize it
-differs (greedy heuristic, greedy + exploration bonus, or exact optimization).
+KL-divergence calibration helpers (Steck, 2018). NOTE: the rerankers themselves
+(``mveac.calibration.eac`` and ``mveac.calibration.mcf``) use the per-element
+form p*log((p+eps)/(q+eps)) of the paper's Eq. 1; ``kl_divergence`` below
+(renormalized smoothing of q) is a reference implementation for analysis and
+tests, numerically equivalent for p > 0 up to O(eps).
 """
 from __future__ import annotations
 

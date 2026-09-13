@@ -1,0 +1,1 @@
+cpu=Apple M2 Max ram_gb=64 python=3.11.15 numpy=2.4.3 threads=1 n_imp=2000 n_users=2000 seed=0

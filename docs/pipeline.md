@@ -28,9 +28,12 @@ behaviors**:
 - **500,000 impressions** for the final reported evaluation (`test_sub.parquet`)
 
 Stratification is 2-way (`mveac.data.sampling`): user history-length quartile
-x impression-timestamp quartile (4x4 = 16 strata), sampled proportionally
-within each stratum, so both subsamples represent cold/heavy users and
-early/late impressions in the same proportions as the full pool.
+x impression-timestamp quartile (4x4 = 16 strata), with **equal allocation**
+(each stratum contributes 1/16 of the subsample), so both subsamples cover
+cold/heavy users and early/late impressions evenly -- not in population
+proportion. The released EB-NeRD Large logs contain no zero-click impressions
+(0 of 12,063,890 train and 0 of 12,566,385 validation behaviors), so no
+click-based filtering is applied.
 
 This step also writes `dataset_report.json`, the candidate-set-size (|R_u|)
 distribution behind the paper's Table 1: because 4 of the 5 reported metrics
@@ -87,17 +90,22 @@ fast.
 Trains the third base recommender: a simplified NRMS (Wu et al., 2019)
 whose news encoder is the dataset's frozen pre-trained Word2Vec embeddings,
 with only the multi-head-self-attention user encoder trained (5 epochs,
-batch size 128, Adam lr=1e-3, on a 200,000-impression stratified subsample of
+batch size 128, Adam lr=1e-3, on a 200,000-impression simple random sample of
 the ~12.06M training behaviors -- see `mveac.models.nrms` for the full
 architecture). Runs on CUDA, Apple Silicon MPS, or CPU, whichever is
 available.
 
 The primary run (`--tag seed0`, the default) is what every later step
-reranks against. The paper additionally reports a **reproducibility check**
-across three further independent training runs -- two more random seeds at
-the same sample size, and one seed at a 1,000,000-impression sample -- to
-confirm the reported effects are not an artifact of a single, possibly
-under-trained instance. Reproduce that check with:
+reranks against. **Exact reproduction note:** the paper's primary run drew its
+training sample with seed 42 (the default `--seed` here) but did not seed the
+parameter initialization, so it cannot be recreated bit-for-bit. Its val/test
+NRMS scores are therefore shipped in `data/reference_scores/`; copy them to
+`$MVEAC_DATA_ROOT/processed/scores/scores_nrms_seed0_{val,test}.parquet` to
+rerank exactly the paper's NRMS lists. The paper additionally reports a
+**reproducibility check** across three further training runs, each with its
+own seed controlling both the training sample and the initialization -- two
+further 200,000-impression samples and one 1,000,000-impression sample.
+Reproduce that check with:
 
 ```bash
 python scripts/04_train_nrms.py --tag seed1 --seed 1
@@ -121,11 +129,8 @@ validation subsample at every point of a (lambda, beta) grid:
 - `lambda in {0.1, 0.3, 0.5, 0.7, 0.9}` (calibration strength)
 - `beta in {0, 0.01, 0.05, 0.1, 0.2, 0.5, 0.7, 0.9, 1.0, 1.5, 2.0}` (exploration strength)
 
-The grid is deliberately searched *past* beta=0.9 (the boundary originally
-considered) to confirm the metric surface plateaus rather than being cut off
-at an unexplored gradient -- see `fig_lambda_beta_heatmap.pdf` (step 10) for
-the visual evidence, and `docs/pipeline.md`'s Step 6 note below for how this
-is reflected in what gets reported.
+The selection grid is beta <= 0.9; beta in {1.0, 1.5, 2.0} is evaluated too,
+but only as a sensitivity analysis (Step 6).
 
 This is the single most expensive step in the pipeline: 5 methods x 11 betas
 x 5 lambdas x 3 base models = 825 grid points, each a full rerank of 50,000
@@ -151,11 +156,13 @@ being functions of the same category-count vector), so including both would
 silently double-weight category-level diversity relative to every other
 objective.
 
-The reported (lambda, beta) is capped at **beta <= 0.9**: the extended grid
-from Step 5 shows every metric moves by less than 0.006 (NDCG), 0.005 (ERR),
-or 0.001 (TCI) between beta=0.9 and beta=2.0, so nothing is lost by capping,
-and a small parsimony tolerance (0.003) breaks ties toward the smallest
-(beta, lambda) within reach of the best score. Trad-Cal's own lambda is
+Selection is restricted to **beta <= 0.9**, with a small parsimony tolerance
+(0.003) that breaks ties toward the smallest (beta, lambda) within reach of the
+best score. The beta > 0.9 points do not show a plateau: had they been
+eligible, 9 of the 15 EAC selections would change (4 of them in lambda too),
+mostly with small validation-metric differences but, for Pop/Entity-EAC, with
++0.033 NDCG@10. These alternatives are written to `beta_sensitivity.csv`
+(paper Section 5.2, beta-sensitivity table). Trad-Cal's own lambda is
 selected independently, from the beta=0 slice of the same grid.
 
 **Runtime:** seconds (pure CSV aggregation).
@@ -165,13 +172,13 @@ selected independently, from the beta=0 slice of the same grid.
 ## Step 7 -- MCF baseline (optional, `scripts/07_mcf_baseline.py`)
 
 The Minimum-Cost-Flow calibration baseline (Abdollahpouri et al., 2023),
-included as an empirical control: it solves the *same* deterministic
-calibration objective as Trad-Cal, but exactly (via network flow) rather
-than greedily, and has no exploration term. Comparing it to Trad-Cal and to
-EAC isolates how much of EAC's advantage is due to exploration versus mere
-optimization precision (see `mveac.calibration.mcf` for the full
-documentation of the three design choices that make this a fair,
-directly-comparable objective).
+included as an empirical control: for the single-label views (category,
+sentiment) it selects the set that exactly optimizes Trad-Cal's deterministic
+objective (via network flow) rather than greedily, with no exploration term;
+for the multi-label views (topic, entity) it solves a relaxation and is
+reported for completeness only. Note that MCF orders its selected set with a
+presentation heuristic, so on impressions with |R_u| <= K its NDCG@K can differ
+from Trad-Cal's for ordering reasons alone (see `mveac.calibration.mcf`).
 
 Requires `ortools` (already in `requirements.txt`). Run as three
 subcommands, `grid` -> `select` -> `eval`, mirroring steps 5-6-8 but with a
@@ -192,15 +199,18 @@ than EAC's greedy reranker, since the flow solver runs once per impression.
 ## Step 8 -- Test-set evaluation (`scripts/08_evaluate_test.py`)
 
 The step that actually produces the paper's headline numbers: reranks the
-500,000-impression test subsample for all 24 reported configurations, at the
+500,000-impression test subsample for every reported configuration, at the
 (lambda, beta) selected in Step 6:
 
 - **Original** (uncalibrated base ranking)
 - **Trad-Cal / EAC** for each of the 4 single-view candidates + MV-EAC (10 configs)
 - **RQ2 ablation**: drop one of MV-EAC's 3 retained views at a time,
   redistributing its weight equally to the other two (3 configs)
+- **RQ2 sentiment add-back**: the 4 candidate views at 1/4 each, at MV-EAC's own
+  (lambda, beta), so it differs from MV-EAC only in the added view (1 config)
 - **RQ4 weight sweep**: `w_topic in {0, .15, .5, .7, .85, 1}` with category and
-  entity always splitting the rest equally (6 configs)
+  entity always splitting the rest equally (6 configs; `w_topic = 0` is the same
+  configuration as the No-Topic ablation)
 
 For every configuration, writes one CSV row **per impression** with every
 metric (this is what all statistical testing in Step 9 runs on) plus the
@@ -215,15 +225,21 @@ itself, only recomputing metrics from the persisted lists.
 
 ## Step 9 -- Statistical tests (`scripts/09_statistical_tests.py`)
 
-Runs paired Wilcoxon signed-rank tests and Cohen's d effect sizes across six
-comparison families (EAC vs. Trad-Cal, MCF vs. Trad-Cal, EAC vs. MCF, MV-EAC
-vs. Original, ablation vs. Full MV-EAC, weight-sweep vs. Full MV-EAC), each
-at both the impression level and a user-clustered level (aggregating to one
+Runs paired Wilcoxon signed-rank tests and Cohen's d_z effect sizes (raw sign,
+method_a - method_b, as in the paper's tables) across nine comparison families
+forming one 405-test family (EAC vs. Trad-Cal, MCF vs. Trad-Cal, EAC vs. MCF,
+MV-EAC vs. Original, ablation vs. Full MV-EAC, weight sweep vs. Full MV-EAC,
+MV-EAC vs. each single view, sentiment add-back vs. MV-EAC, and MV-EAC vs.
+Trad-Cal-MV on the three extra NRMS runs), each at both the impression level
+and a user-clustered level (aggregating to one
 paired observation per user, since the test subsample averages ~1.7
 impressions per user -- non-independent observations can inflate a naive
 impression-level test's apparent power). p-values are corrected for
 multiplicity across the whole family using both Holm-Bonferroni and
-Benjamini-Hochberg.
+Benjamini-Hochberg. Also writes `pooled.csv` (the descriptive pooled-over-models
+effect sizes of the ablation/sweep/add-back tables; a pooled row counts as
+significant only if all three per-model tests are Holm-significant) and
+`ru_gtK_means.csv` (every configuration restricted to |R_u| > K).
 
 **Runtime:** a few minutes (reads the per-impression CSVs from Step 8).
 
@@ -239,18 +255,26 @@ sweep) as vector PDFs. Pure plotting; needs Steps 5, 8, and 9's outputs.
 
 ---
 
+## Step 11 -- Latency benchmark (optional, `scripts/11_latency_benchmark.py`)
+
+Times only the per-impression reranking call (single process, one BLAS thread)
+for every reranker at its selected hyperparameters on a random sample of test
+impressions, plus the per-user cost of building the semantic profiles.
+
+---
+
 ## Mapping outputs to the paper
 
 | Paper element | Produced by | File |
 |---|---|---|
-| Table 1 (dataset statistics) | Step 1 | `data/processed/dataset_report.json` |
-| Table 5 (selected hyperparameters) | Step 6 | `data/results/best_params.csv` |
-| Table 6 (main results, RQ1) | Step 8 + 9 | `data/results/test_summary.csv`, `stats_full.csv` (family A) |
-| Table 7/8 (ablation, RQ2) | Step 8 + 9 | `stats_full.csv` (family E) |
-| Table 9 (single- vs. multi-view, RQ3) | Step 8 | `test_summary.csv` |
-| RQ4 weight sweep | Step 8 + 9 | `stats_full.csv` (family F) |
-| Figure "method comparison" | Step 10 | `data/figures/fig_method_comparison.pdf` |
-| Figure "lambda-beta heatmap" | Step 10 | `data/figures/fig_lambda_beta_heatmap.pdf` |
-| Figure "ablation" | Step 10 | `data/figures/fig_ablation.pdf` |
-| Figure "weight sweep" | Step 10 | `data/figures/fig_weight_sweep.pdf` |
-| NRMS reproducibility check | Steps 4 + 8 (variants) | `test_summary_nrms_{tag}.csv` |
+| Dataset statistics table | Step 1 | `data/processed/dataset_report.json` |
+| Selected hyperparameters table | Step 6 | `data/results/best_params.csv` |
+| Beta-sensitivity table | Step 6 | `data/results/beta_sensitivity.csv` |
+| Main results table (RQ1) | Steps 7, 8, 9 | `test_summary.csv`, `test_summary_mcf.csv`, `stats_full.csv` (families A, B, C, D) |
+| |R_u| > K appendix table | Step 9 | `ru_gtK_means.csv`, `stats_full.csv` (`d_impression_ru_gtK`) |
+| NRMS training-run robustness table | Steps 4, 8 (variants), 9 | `test_summary_nrms_{tag}.csv`, `stats_full.csv` (family I) |
+| Ablation / add-back tables (RQ2) | Steps 8, 9 | `pooled.csv`, `stats_full.csv` (families E, H) |
+| Single- vs. multi-view table (RQ3) | Steps 8, 9 | `test_summary.csv`, `stats_full.csv` (family G) |
+| RQ4 weight sweep | Steps 8, 9 | `stats_full.csv` (family F), `pooled.csv` |
+| Figures (method comparison, lambda-beta heatmap, ablation, weight sweep) | Step 10 | `data/figures/*.pdf` |
+| Reranking latency / profile cost | Step 11 | `latency_bench.csv`, `profile_cost_bench.csv` |
