@@ -163,7 +163,10 @@ eligible, 9 of the 15 EAC selections would change (4 of them in lambda too),
 mostly with small validation-metric differences but, for Pop/Entity-EAC, with
 +0.033 NDCG@10. These alternatives are written to `beta_sensitivity.csv`
 (paper Section 5.2, beta-sensitivity table). Trad-Cal's own lambda is
-selected independently, from the beta=0 slice of the same grid.
+selected independently, from the beta=0 slice of the same grid. In both cases the
+min-max normalization runs over the full 55-point grid, so the beta > 0.9 points
+set the scale of the score (normalizing over the 40 eligible points only would
+change the NRMS Category-EAC and Sentiment-EAC selections; paper Section 4.6).
 
 **Runtime:** seconds (pure CSV aggregation).
 

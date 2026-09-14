@@ -74,8 +74,9 @@ def select_unrestricted(grid: pd.DataFrame, score_column: str = "maut_score") ->
 
 
 def select_best_traditional(grid: pd.DataFrame, score_column: str = "maut_score") -> pd.Series:
-    """Trad-Cal's lambda is selected independently of its paired EAC method: MAUT is
-    applied only to the beta=0 slice of the same grid, so Trad-Cal is evaluated at its
+    """Trad-Cal's lambda is selected independently of its paired EAC method: the MAUT
+    score (min-max normalized over the full grid, as for EAC) is maximized over the
+    beta=0 slice of the same grid only, so Trad-Cal is evaluated at its
     own best deterministic configuration rather than inheriting a lambda tuned jointly
     with an exploration term it does not use."""
     traditional_slice = grid[grid["beta"] == 0.0]
