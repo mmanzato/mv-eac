@@ -47,6 +47,11 @@ python scripts/run_all.py --with-mcf --with-nrms-variants
 
 # 4. (optional) reranking latency / profile-construction cost
 python scripts/11_latency_benchmark.py
+
+# 5. (optional) greedy-vs-exact check, epsilon sensitivity, and view NMI
+python scripts/12_verify_greedy_exactness.py
+python scripts/13_eps_sensitivity.py
+python scripts/14_nmi_matrix.py
 ```
 
 Every script under `scripts/` is independently runnable and resumable --

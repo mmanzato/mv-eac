@@ -274,6 +274,29 @@ set with a higher objective value (it does not; differing sets tie in objective 
 
 ---
 
+## Step 13 -- KL smoothing-constant sensitivity (optional, `scripts/13_eps_sensitivity.py`)
+
+Reranks the validation subsample with Entity-EAC at each base model's selected
+(lambda, beta) for epsilon in {1e-10, 1e-6, 1e-4, 1e-2}, without re-selecting
+lambda or beta, and records NDCG@K, ERR@K, and TCI@K. Needs Step 6's
+`best_params.csv`.
+
+**Runtime:** about 3 minutes per (model, epsilon) pair on the 50,000-impression
+validation subsample.
+
+---
+
+## Step 14 -- NMI between semantic views (optional, `scripts/14_nmi_matrix.py`)
+
+Pairwise normalized mutual information (arithmetic-mean normalization) between the
+five candidate views over the whole article catalog. Multi-label views (topic, entity)
+are summarized by each article's first annotated label; articles without a label under
+a view are pooled into an `unknown` class. Needs Step 2's `article_maps.pkl`.
+
+**Runtime:** seconds.
+
+---
+
 ## Mapping outputs to the paper
 
 | Paper element | Produced by | File |
@@ -290,4 +313,5 @@ set with a higher objective value (it does not; differing sets tie in objective 
 | Figures (method comparison, lambda-beta heatmap, ablation, weight sweep) | Step 10 | `data/figures/*.pdf` |
 | Reranking latency / profile cost | Step 11 | `latency_bench.csv`, `profile_cost_bench.csv` |
 | Greedy Trad-Cal = exact optimum for single-label views (Section 4.4) | Step 12 | `greedy_vs_mcf.csv` |
-| NMI matrix figure | (analysis) | `nmi_matrix.csv` |
+| Smoothing-constant sensitivity (Limitations) | Step 13 | `eps_sensitivity.csv` |
+| NMI matrix figure (Section 5.7.1) | Step 14 | `nmi_matrix.csv` |
