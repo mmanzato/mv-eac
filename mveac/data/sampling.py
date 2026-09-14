@@ -112,10 +112,26 @@ def candidate_set_size_report(behaviors: pd.DataFrame, k: int) -> dict[str, floa
     sizes = behaviors["article_ids_inview"].apply(len)
     n_le_k = int((sizes <= k).sum())
     n_gt_k = int((sizes > k).sum())
-    return {
+    gt = sizes[sizes > k]
+    report = {
+        "n_impressions": int(len(sizes)),
         "median": float(sizes.median()),
         "mean": float(sizes.mean()),
+        "p25": float(sizes.quantile(0.25)),
+        "p75": float(sizes.quantile(0.75)),
+        "min": int(sizes.min()),
+        "max": int(sizes.max()),
         "n_le_k": n_le_k,
         "n_gt_k": n_gt_k,
         "frac_le_k": n_le_k / len(sizes) if len(sizes) else 0.0,
+        "gt_k_median": float(gt.median()) if len(gt) else float("nan"),
+        "gt_k_p25": float(gt.quantile(0.25)) if len(gt) else float("nan"),
+        "gt_k_p75": float(gt.quantile(0.75)) if len(gt) else float("nan"),
+        "gt_k_mean_discarded": float((gt - k).mean()) if len(gt) else float("nan"),
+        "n_eq_k_plus_1": int((sizes == k + 1).sum()),
     }
+    if "user_id" in behaviors.columns:
+        report["n_users"] = int(behaviors["user_id"].nunique())
+    if "article_ids_clicked" in behaviors.columns:
+        report["frac_with_click"] = float((behaviors["article_ids_clicked"].apply(len) > 0).mean())
+    return report

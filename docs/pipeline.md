@@ -263,12 +263,20 @@ impressions, plus the per-user cost of building the semantic profiles.
 
 ---
 
+## Step 12 -- Greedy vs. exact calibration check (optional, `scripts/12_verify_greedy_exactness.py`)
+
+On a random sample of test impressions, compares the greedy Trad-Cal reranker with the exact
+MCF solver at the same lambda for the single-label views and reports whether MCF ever finds a
+set with a higher objective value (it does not; differing sets tie in objective value).
+
+---
+
 ## Mapping outputs to the paper
 
 | Paper element | Produced by | File |
 |---|---|---|
-| Dataset statistics table | Step 1 | `data/processed/dataset_report.json` |
-| Selected hyperparameters table | Step 6 | `data/results/best_params.csv` |
+| Dataset statistics table | Step 1 | `data/processed/dataset_report.json` (reference copy: `data/results/dataset_report.json`) |
+| Selected hyperparameters table | Steps 6, 7 | `data/results/best_params.csv`, `best_params_mcf.csv`, validation grids `val_grid_*.csv` |
 | Beta-sensitivity table | Step 6 | `data/results/beta_sensitivity.csv` |
 | Main results table (RQ1) | Steps 7, 8, 9 | `test_summary.csv`, `test_summary_mcf.csv`, `stats_full.csv` (families A, B, C, D) |
 | |R_u| > K appendix table | Step 9 | `ru_gtK_means.csv`, `stats_full.csv` (`d_impression_ru_gtK`) |
@@ -278,3 +286,5 @@ impressions, plus the per-user cost of building the semantic profiles.
 | RQ4 weight sweep | Steps 8, 9 | `stats_full.csv` (family F), `pooled.csv` |
 | Figures (method comparison, lambda-beta heatmap, ablation, weight sweep) | Step 10 | `data/figures/*.pdf` |
 | Reranking latency / profile cost | Step 11 | `latency_bench.csv`, `profile_cost_bench.csv` |
+| Greedy Trad-Cal = exact optimum for single-label views (Section 4.4) | Step 12 | `greedy_vs_mcf.csv` |
+| NMI matrix figure | (analysis) | `nmi_matrix.csv` |

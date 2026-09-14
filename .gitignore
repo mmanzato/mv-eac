@@ -10,7 +10,6 @@
 /data/figures/
 /data/results/lists/
 /data/results/per_impression_*.csv
-/data/results/val_grid_*.csv
 
 # Python
 __pycache__/
