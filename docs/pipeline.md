@@ -226,11 +226,11 @@ itself, only recomputing metrics from the persisted lists.
 ## Step 9 -- Statistical tests (`scripts/09_statistical_tests.py`)
 
 Runs paired Wilcoxon signed-rank tests and Cohen's d_z effect sizes (raw sign,
-method_a - method_b, as in the paper's tables) across nine comparison families
-forming one 405-test family (EAC vs. Trad-Cal, MCF vs. Trad-Cal, EAC vs. MCF,
+method_a - method_b, as in the paper's tables) across ten comparison families
+forming one 465-test family (EAC vs. Trad-Cal, MCF vs. Trad-Cal, EAC vs. MCF,
 MV-EAC vs. Original, ablation vs. Full MV-EAC, weight sweep vs. Full MV-EAC,
-MV-EAC vs. each single view, sentiment add-back vs. MV-EAC, and MV-EAC vs.
-Trad-Cal-MV on the three extra NRMS runs), each at both the impression level
+MV-EAC vs. each single view, sentiment add-back vs. MV-EAC, MV-EAC vs.
+Trad-Cal-MV on the three extra NRMS runs, and the ablation/add-back replicated on those runs), each at both the impression level
 and a user-clustered level (aggregating to one
 paired observation per user, since the test subsample averages ~1.7
 impressions per user -- non-independent observations can inflate a naive

@@ -13,7 +13,7 @@ For each base model, evaluates:
                                                    (w_topic = 0.00 is the same configuration as ablation_no_topic)
 
 With ``--nrms-tag <tag>`` (tag != seed0) only the NRMS reproducibility subset
-{original, topic_eac, entity_eac, mv_eac, traditional_mv_eac} is evaluated, at the
+{original, topic_eac, entity_eac, mv_eac, traditional_mv_eac, the three ablations, mv4_at_mv3params} is evaluated, at the
 seed0 (lambda, beta), and every output file name carries the tag
 (``per_impression_nrms_<tag>_<method>.csv``) so seed0 results are never overwritten.
 
@@ -103,7 +103,8 @@ def _best_param(model: str, method: str, column: str) -> float:
     return float(row[column].iloc[0])
 
 
-NRMS_VARIANT_METHODS = {"original", "topic_eac", "entity_eac", "mv_eac", "traditional_mv_eac"}
+NRMS_VARIANT_METHODS = {"original", "topic_eac", "entity_eac", "mv_eac", "traditional_mv_eac",
+                        "ablation_no_category", "ablation_no_entity", "ablation_no_topic", "mv4_at_mv3params"}
 
 
 def _build_tasks(models: list[str], nrms_tag: str = "seed0") -> list[tuple]:

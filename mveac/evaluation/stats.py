@@ -1,7 +1,7 @@
 """
 Statistical significance testing: paired Wilcoxon signed-rank tests, Cohen's
 d effect sizes, and multiplicity correction across the whole family of
-comparisons the paper makes (405 tests in one family across all research
+comparisons the paper makes (465 tests in one family across all research
 questions, see scripts/09_statistical_tests.py), plus a user-level clustered re-test to check that impression-level
 non-independence (a user contributes ~1.7 impressions on average to the test
 subsample) is not driving the significance pattern on its own.

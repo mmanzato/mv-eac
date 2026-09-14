@@ -4,8 +4,8 @@ Step 9 of 10 -- statistical significance testing across every comparison the
 paper makes.
 
 For each base model, runs paired Wilcoxon signed-rank tests + Cohen's d_z on
-the per-impression files written by step 8, across nine comparison families
-that together form ONE Holm-Bonferroni / Benjamini-Hochberg family (405 tests):
+the per-impression files written by step 8, across ten comparison families
+that together form ONE Holm-Bonferroni / Benjamini-Hochberg family (465 tests):
 
     A  each single-view EAC and MV-EAC vs. its matched Trad-Cal baseline   (RQ1)   75
     B  each MCF variant vs. its matched Trad-Cal baseline                  (RQ1)   60
@@ -18,8 +18,9 @@ that together form ONE Holm-Bonferroni / Benjamini-Hochberg family (405 tests):
     G  MV-EAC vs. each retained single-view EAC                            (RQ3)   45
     H  sentiment add-back (4 views at MV-EAC's lambda/beta) vs. MV-EAC     (RQ2)   15
     I  MV-EAC vs. Trad-Cal-MV on the three extra NRMS training runs        (RQ1)   15
+    J  RQ2 ablation + sentiment add-back on the three extra NRMS runs      (RQ2)   60
 
-Families B/C need step 7; family I needs ``08_evaluate_test.py --nrms-tag``.
+Families B/C need step 7; families I/J need ``08_evaluate_test.py --nrms-tag``.
 
 Every test is run twice: on impression-level paired differences, and after
 aggregating to one paired observation per user (mean of that user's differences).
@@ -121,6 +122,10 @@ def main() -> None:
     jobs = [(model, c) for model in C.MODELS for c in _comparisons(model)]
     jobs += [(f"nrms_{tag}", ("I_NRMS_Variants", "mv_eac vs trad", "mv_eac", "traditional_mv_eac"))
              for tag in NRMS_VARIANT_TAGS]
+    for tag in NRMS_VARIANT_TAGS:
+        for name in C.ABLATION_CONFIGS:
+            jobs.append((f"nrms_{tag}", ("J_NRMS_Variant_Ablation", f"{name} vs mv_eac", f"ablation_{name}", "mv_eac")))
+        jobs.append((f"nrms_{tag}", ("J_NRMS_Variant_Ablation", "mv4 vs mv_eac", "mv4_at_mv3params", "mv_eac")))
 
     rows = []
     for model, (family, label, method_a, method_b) in jobs:
