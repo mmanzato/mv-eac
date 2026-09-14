@@ -114,7 +114,9 @@ ABLATION_CONFIGS: dict[str, dict[str, float]] = {
 # RQ4: continuous view-weight sweep (replaces a fixed set of hand-picked
 # weight vectors with a systematic scan of the topic weight; category and
 # entity always split the remaining weight equally). w_topic = 1/3 recovers
-# MV-EAC's own uniform weighting; w_topic = 1.0 recovers Topic-EAC.
+# MV-EAC's own uniform weighting; w_topic = 0 coincides with the No-Topic
+# ablation variant (tested once); w_topic = 1.0 is a topic-only reranker at
+# MV-EAC's (lambda, beta), not Topic-EAC (whose own selected lambda, beta differ).
 # ---------------------------------------------------------------------------
 WEIGHT_SWEEP = [0.0, 0.15, 0.50, 0.70, 0.85, 1.0]
 
