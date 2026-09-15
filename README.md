@@ -55,6 +55,12 @@ python scripts/14_nmi_matrix.py
 
 # 6. (optional) view selection on the validation set (Section 5.4)
 python scripts/15_validation_view_selection.py
+
+# 7. (optional) robustness analyses of the Supplementary Material (Section S7)
+python scripts/11_latency_benchmark.py --min-candidates 11
+python scripts/16_view_term_scales.py
+python scripts/17_unlabeled_article_rule.py
+python scripts/18_metric_construction_robustness.py
 ```
 
 Every script under `scripts/` is independently runnable and resumable --

@@ -179,6 +179,8 @@ def fig_weight_sweep() -> None:
         ax.axvline(1 / 3, color=MUTED, linewidth=0.8, linestyle=":")
         ax.set_title(title, fontsize=8.5)
         ax.set_xlabel(r"$w_{\mathrm{topic}}$", fontsize=8)
+        ax.set_xticks([0, 0.15, 1 / 3, 0.5, 0.7, 0.85, 1])
+        ax.set_xticklabels(["0", ".15", "1/3", ".5", ".7", ".85", "1"], fontsize=5.5, rotation=90)
         ax.tick_params(axis="y", labelsize=6.5)
         ax.yaxis.set_major_locator(mticker.MaxNLocator(4))
         _style(ax)

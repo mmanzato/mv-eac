@@ -122,6 +122,10 @@ def _greedy_rerank_single_view(
         scores = (1.0 - lam) * relevance - lam * kl_term + beta * ucb_term
         scores[~active] = -np.inf
 
+        # np.argmax returns the first maximum: ties go to the candidate ranked higher by the
+        # base recommender (candidates arrive in base-rank order; logged order for cold-start users).
+        # A candidate with no label under a view contributes no exploration bonus for that view
+        # and leaves the list distribution Q of that view unchanged (paper Section 3.3).
         best = int(np.argmax(scores))
         if not active[best]:
             break  # every remaining candidate was already excluded (shouldn't happen)
@@ -225,6 +229,10 @@ def multi_view_eac(
         scores = (1.0 - lam) * relevance - lam * kl_total + beta * ucb_total
         scores[~active] = -np.inf
 
+        # np.argmax returns the first maximum: ties go to the candidate ranked higher by the
+        # base recommender (candidates arrive in base-rank order; logged order for cold-start users).
+        # A candidate with no label under a view contributes no exploration bonus for that view
+        # and leaves the list distribution Q of that view unchanged (paper Section 3.3).
         best = int(np.argmax(scores))
         if not active[best]:
             break

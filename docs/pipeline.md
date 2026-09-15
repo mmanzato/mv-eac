@@ -262,7 +262,9 @@ sweep) as vector PDFs. Pure plotting; needs Steps 5, 8, and 9's outputs.
 
 Times only the per-impression reranking call (single process, one BLAS thread)
 for every reranker at its selected hyperparameters on a random sample of test
-impressions, plus the per-user cost of building the semantic profiles.
+impressions, plus the per-user cost of building the semantic profiles. With
+`--min-candidates 11` the sample is drawn from impressions with more than K
+candidates (`latency_bench_gtK.csv`), where reranking changes the recommended set.
 
 ---
 
@@ -311,6 +313,34 @@ effect on any metric in any base model). The test-set ablation and add-back of s
 
 ---
 
+## Step 16 -- Per-view scale of the MV-EAC terms (optional, `scripts/16_view_term_scales.py`)
+
+Along MV-EAC's greedy path on 3,000 validation impressions with more than K candidates per
+base model, records the spread of each weighted KL and UCB term across the remaining
+candidates, the mean unweighted terms, and how often dropping one view's terms would change
+the selected article (equal view weights are nominal, not equal influence).
+
+---
+
+## Step 17 -- Handling of articles without labels (optional, `scripts/17_unlabeled_article_rule.py`)
+
+Reruns Entity-EAC and MV-EAC on the validation subsample under the pipeline's rule (a
+candidate with no label under a view gets no exploration bonus) and under the alternative
+rule that gives it the largest bonus Eq. (3) allows, and compares the two.
+
+---
+
+## Step 18 -- Construction of ERR@K and TCI@K (optional, `scripts/18_metric_construction_robustness.py`)
+
+From the stored test-set lists of Step 8, recomputes ERR@K across articles (entity sets per
+article), TCI@K with a topic mass of 1 per article, and entity-coverage counts, with the paired
+effect sizes of the key comparisons under each variant.
+
+Steps 16--17 use `mveac.analysis.greedy_diagnostics`, an instrumented copy of the MV-EAC
+reranker that is tested to reproduce `multi_view_eac` exactly under the pipeline's rule.
+
+---
+
 ## Mapping outputs to the paper
 
 | Paper element | Produced by | File |
@@ -325,8 +355,11 @@ effect on any metric in any base model). The test-set ablation and add-back of s
 | Single- vs. multi-view table (RQ3) | Steps 8, 9 | `test_summary.csv`, `stats_full.csv` (family G) |
 | RQ4 weight sweep | Steps 8, 9 | `stats_full.csv` (family F), `pooled.csv` |
 | Figures (method comparison, lambda-beta heatmap, ablation, weight sweep) | Step 10 | `data/figures/*.pdf` |
-| Reranking latency / profile cost | Step 11 | `latency_bench.csv`, `profile_cost_bench.csv` |
+| Reranking latency / profile cost (Section 6.2, Supplementary S7) | Step 11 | `latency_bench.csv`, `latency_bench_gtK.csv`, `profile_cost_bench.csv` |
 | Greedy Trad-Cal = exact optimum for single-label views (Section 4.4) | Step 12 | `greedy_vs_mcf.csv` |
 | Smoothing-constant sensitivity (Limitations) | Step 13 | `eps_sensitivity.csv` |
 | NMI matrix figure (Section 5.7.1) | Step 14 | `nmi_matrix.csv` |
 | View selection on validation data (Section 5.4) | Step 15 | `val_view_selection_stats.csv` |
+| Per-view term scales (Section 5.6, Supplementary S7) | Step 16 | `view_term_scales.csv` |
+| Articles without labels (Section 6.3, Supplementary S7) | Step 17 | `unlabeled_article_rule.csv` |
+| Construction of ERR@K/TCI@K (Section 4.5.3, Supplementary S7) | Step 18 | `metric_construction_means.csv`, `metric_construction_effects.csv` |

@@ -9,8 +9,10 @@ semantic profiles from EB-NeRD history for a random sample of test users.
 
 Usage:
     python scripts/11_latency_benchmark.py [--n-impressions 2000] [--n-users 2000]
+    python scripts/11_latency_benchmark.py --min-candidates 11   # impressions with |R_u| > K only
 
 Output (under $MVEAC_DATA_ROOT/results/): latency_bench.csv, profile_cost_bench.csv
+(with --min-candidates: latency_bench_gtK.csv; profile cost is not re-timed)
 """
 from __future__ import annotations
 
@@ -45,6 +47,8 @@ def main() -> None:
     ap.add_argument("--n-impressions", type=int, default=2000)
     ap.add_argument("--n-users", type=int, default=2000)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--min-candidates", type=int, default=0,
+                    help="sample only impressions with at least this many candidates (11 = |R_u| > K)")
     args = ap.parse_args()
 
     vocabs = json.load(open(C.SEM_DIR / "vocabs.json"))
@@ -58,8 +62,11 @@ def main() -> None:
     best_mcf_path = C.RESULTS_DIR / "best_params_mcf.csv"
     best_mcf = pd.read_csv(best_mcf_path) if best_mcf_path.exists() else None
     rng = np.random.default_rng(args.seed)
-    sample = set(int(x) for x in rng.choice(test_sub.impression_id.astype(int).values,
-                                            size=args.n_impressions, replace=False))
+    pool = test_sub.impression_id.astype(int).values
+    if args.min_candidates:
+        sizes = pd.read_parquet(C.SCORES_DIR / "scores_itemknn_test.parquet", columns=["impression_id"]).groupby("impression_id").size()
+        pool = sizes[sizes >= args.min_candidates].index.values.astype(int)
+    sample = set(int(x) for x in rng.choice(pool, size=args.n_impressions, replace=False))
 
     def profile(view, uid):
         p = profiles[view].get(uid)
@@ -99,8 +106,12 @@ def main() -> None:
         for name, fn in runners.items():
             ts = timed(fn)
             rows.append({"model": model, "method": name, "n_impressions": len(ts), "median_ms": np.median(ts),
-                         "mean_ms": ts.mean(), "p95_ms": np.percentile(ts, 95)})
+                         "mean_ms": ts.mean(), "p95_ms": np.percentile(ts, 95),
+                         "median_candidates": float(np.median([len(c) for c in cands.values()]))})
             print(rows[-1], flush=True)
+    if args.min_candidates:
+        pd.DataFrame(rows).to_csv(C.RESULTS_DIR / "latency_bench_gtK.csv", index=False)
+        return
     pd.DataFrame(rows).to_csv(C.RESULTS_DIR / "latency_bench.csv", index=False)
 
     history = load_train_history(C.EBNERD_LARGE_ZIP)
