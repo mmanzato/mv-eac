@@ -24,7 +24,7 @@ above collapse to their single term; ``"traditional"`` is the special case
 ``beta=0`` (no exploration term at all -- deterministic KL calibration only,
 Steck 2018). For ``"mv_eac"``, several views are combined via user-supplied
 weights ``w_v`` (the paper's :math:`\\mathcal{V}^\\star` and its weight vector,
-Section 3.6).
+Section 3.5).
 
 Implementation note: both rerankers are fully vectorized with numpy -- at each
 of the K steps, every remaining candidate is scored via broadcasting rather

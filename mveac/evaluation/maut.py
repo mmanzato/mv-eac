@@ -52,7 +52,7 @@ def select_best_eac(grid: pd.DataFrame, score_column: str = "maut_score") -> pd.
        (they still enter the min-max normalization of the MAUT score). The
        extension does not show a plateau -- without the restriction, 9 of the
        15 EAC selections would move to beta > 0.9 (paper Section 5.2 and
-       ``select_unrestricted`` below).
+       Supplementary Table S6; ``select_unrestricted`` below).
     2. **Parsimony tie-break.** Within the capped grid, any row within
        ``PARSIMONY_TOL`` of the best score is treated as tied with it; among
        those, the smallest (beta, lambda) is preferred, so the reported

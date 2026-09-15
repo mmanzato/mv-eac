@@ -41,7 +41,7 @@ def _row(summary: pd.DataFrame, model: str, method: str) -> pd.Series:
 
 
 class TestOriginalBaseline:
-    """The uncalibrated NDCG@10 of each base model (paper Section 5, Table 6)."""
+    """The uncalibrated NDCG@10 of each base model (paper Section 5, Table 4)."""
 
     @pytest.mark.parametrize("model,expected_ndcg", [
         ("most_popular", 0.3794),
@@ -54,7 +54,7 @@ class TestOriginalBaseline:
 
 
 class TestMVEACHeadlineNumbers:
-    """MV-EAC's own reported metrics per base model (paper Table 6 / RQ1-RQ3)."""
+    """MV-EAC's own reported metrics per base model (paper Table 4 / RQ1-RQ3)."""
 
     @pytest.mark.parametrize("model,expected", [
         ("most_popular", {"NDCG@K": 0.4658, "ILD@K": 0.8245, "Entropy": 1.4358, "ERR@K": 0.1095, "TCI@K": 0.0537}),

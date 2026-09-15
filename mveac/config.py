@@ -143,8 +143,8 @@ KL_EPSILON = 1e-10  # additive smoothing to keep KL(P||Q) finite when Q has zero
 # ---------------------------------------------------------------------------
 LAMBDA_GRID = [0.1, 0.3, 0.5, 0.7, 0.9]
 # The SELECTION grid is beta <= 0.9. beta in {1.0, 1.5, 2.0} is also evaluated on
-# validation, but only as a sensitivity analysis (paper Section 5.2, Table
-# "beta sensitivity"); those points are never selected.
+# validation, but only as a sensitivity analysis (paper Section 5.2,
+# Supplementary Table S6); those points are never selected.
 BETA_GRID = [0.0, 0.01, 0.05, 0.1, 0.2, 0.5, 0.7, 0.9, 1.0, 1.5, 2.0]
 
 # Selection is restricted to beta <= BETA_CAP, with a small parsimony tolerance
@@ -194,7 +194,7 @@ NRMS_TRAIN_SAMPLE = 200_000   # impressions (simple random sample) from the ~12M
 NRMS_PRIMARY_SAMPLE_SEED = RANDOM_SEED
 NRMS_CKPT = CKPT_DIR / "nrms_seed0.pt"
 
-# Reproducibility check (paper Section 5.3, "training-run variance"): three further
+# Reproducibility check (paper Section 5.3.2, "Robustness Across NRMS Training Runs"): three further
 # instances, each with its own seed controlling BOTH the training sample and the
 # parameter initialization (so their spread mixes both sources of variance).
 NRMS_VARIANTS = {

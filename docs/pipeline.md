@@ -162,11 +162,11 @@ best score. The beta > 0.9 points do not show a plateau: had they been
 eligible, 9 of the 15 EAC selections would change (4 of them in lambda too),
 mostly with small validation-metric differences but, for Pop/Entity-EAC, with
 +0.033 NDCG@10. These alternatives are written to `beta_sensitivity.csv`
-(paper Section 5.2, beta-sensitivity table). Trad-Cal's own lambda is
+(paper Section 5.2, Supplementary Table S6). Trad-Cal's own lambda is
 selected independently, from the beta=0 slice of the same grid. In both cases the
 min-max normalization runs over the full 55-point grid, so the beta > 0.9 points
 set the scale of the score (normalizing over the 40 eligible points only would
-change the NRMS Category-EAC and Sentiment-EAC selections; paper Section 4.6).
+change the NRMS Category-EAC and Sentiment-EAC selections; paper Section 4.6, Supplementary Section S5).
 
 **Runtime:** seconds (pure CSV aggregation).
 
@@ -358,7 +358,7 @@ reranker that is tested to reproduce `multi_view_eac` exactly under the pipeline
 | Reranking latency / profile cost (Section 6.2, Supplementary S7) | Step 11 | `latency_bench.csv`, `latency_bench_gtK.csv`, `profile_cost_bench.csv` |
 | Greedy Trad-Cal = exact optimum for single-label views (Section 4.4) | Step 12 | `greedy_vs_mcf.csv` |
 | Smoothing-constant sensitivity (Limitations) | Step 13 | `eps_sensitivity.csv` |
-| NMI matrix figure (Section 5.7.1) | Step 14 | `nmi_matrix.csv` |
+| NMI matrix (Section 5.7, Supplementary S6, Figure S1) | Step 14 | `nmi_matrix.csv` |
 | View selection on validation data (Section 5.4) | Step 15 | `val_view_selection_stats.csv` |
 | Per-view term scales (Section 5.6, Supplementary S7) | Step 16 | `view_term_scales.csv` |
 | Articles without labels (Section 6.3, Supplementary S7) | Step 17 | `unlabeled_article_rule.csv` |
