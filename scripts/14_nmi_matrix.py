@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Optional analysis -- pairwise NMI between the semantic views (paper Section 5.7.1, NMI figure).
+Optional analysis -- pairwise NMI between the semantic views (paper Section 5.7; Supplementary Section S6, Figure S1).
 
 Every article in the catalog (the union of the article maps of all views) is given one
 label per view: its single label for the single-label views (category, subcategory,
