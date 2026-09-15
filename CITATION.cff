@@ -1,8 +1,8 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite the accompanying paper."
 title: "MV-EAC: Multi-View Exploration-Aware Calibration for News Recommendation"
-version: "1.2.0"
-date-released: "2026-09-14"
+version: "1.2.1"
+date-released: "2026-09-15"
 repository-code: "https://github.com/mmanzato/mv-eac"
 authors:
   - family-names: "Ferraz"

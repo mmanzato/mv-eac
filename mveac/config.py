@@ -82,10 +82,12 @@ TEST_SAMPLE_SEED = RANDOM_SEED + 2
 #   - subcategory is excluded *upfront*: near-duplicate of category
 #     (NMI(category, subcategory) = 0.673 on the full corpus).
 #   - sentiment is evaluated as a full single-view candidate but excluded
-#     *empirically*, under the paper's view-inclusion criterion (Section 5.4):
-#     a view is excluded if the model without it is never worse, by a
-#     non-negligible (|d| >= 0.10) effect, on any metric in any base model.
-#     Adding sentiment to the 3-view model at identical (lambda, beta)
+#     *empirically*, under the paper's view-inclusion criterion (Section 5.4),
+#     applied on the VALIDATION set (scripts/15_validation_view_selection.py;
+#     the test-set runs of steps 8-9 confirm it): a view is excluded if the
+#     model without it is never worse, by a non-negligible (|d| >= 0.10)
+#     Holm-significant effect, on any metric in any base model. Adding
+#     sentiment to the 3-view model at identical (lambda, beta)
 #     (SENTIMENT_ADDBACK_WEIGHTS) improves no metric non-negligibly.
 ALL_VIEWS = ["category", "subcategory", "entity", "topic", "sentiment"]
 CANDIDATE_VIEWS = ["category", "entity", "topic", "sentiment"]  # evaluated as single-view EAC

@@ -52,6 +52,9 @@ python scripts/11_latency_benchmark.py
 python scripts/12_verify_greedy_exactness.py
 python scripts/13_eps_sensitivity.py
 python scripts/14_nmi_matrix.py
+
+# 6. (optional) view selection on the validation set (Section 5.4)
+python scripts/15_validation_view_selection.py
 ```
 
 Every script under `scripts/` is independently runnable and resumable --

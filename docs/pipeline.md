@@ -297,6 +297,20 @@ a view are pooled into an `unknown` class. Needs Step 2's `article_maps.pkl`.
 
 ---
 
+## Step 15 -- View selection on the validation set (`scripts/15_validation_view_selection.py`)
+
+Fixes the MV-EAC view set on development data. At MV-EAC's selected (lambda, beta), reranks
+the 50,000-impression validation subsample with MV-EAC, the three one-view-removed ablations,
+and the sentiment add-back; tests each variant against MV-EAC on the five metrics as one Holm
+family of 60 tests (impression- and user-level); and applies the view-inclusion criterion
+(exclude a view if the model without it is never worse by a non-negligible, Holm-significant
+effect on any metric in any base model). The test-set ablation and add-back of steps 8-9
+(families E and H) confirm the decision. Needs step 6's `best_params.csv`.
+
+**Runtime:** about 4 minutes per (model, configuration) pair; 15 pairs.
+
+---
+
 ## Mapping outputs to the paper
 
 | Paper element | Produced by | File |
@@ -315,3 +329,4 @@ a view are pooled into an `unknown` class. Needs Step 2's `article_maps.pkl`.
 | Greedy Trad-Cal = exact optimum for single-label views (Section 4.4) | Step 12 | `greedy_vs_mcf.csv` |
 | Smoothing-constant sensitivity (Limitations) | Step 13 | `eps_sensitivity.csv` |
 | NMI matrix figure (Section 5.7.1) | Step 14 | `nmi_matrix.csv` |
+| View selection on validation data (Section 5.4) | Step 15 | `val_view_selection_stats.csv` |
