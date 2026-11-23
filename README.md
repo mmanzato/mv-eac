@@ -9,21 +9,33 @@ topics even when a recommendation list looks diverse at the category level.
 This project introduces:
 
 - **Exploration-Aware Calibration (EAC)**: a post-processing reranker that
-  augments KL-divergence calibration (Steck, 2018) with a UCB-style
-  exploration bonus.
+  augments KL-divergence calibration (Steck, 2018) with a UCB-inspired
+  coverage bonus (a deterministic count-based bonus, not a bandit).
 - **Multi-View EAC (MV-EAC)**: applies EAC jointly across three complementary
-  semantic views -- category, entity, and topic.
+  semantic views -- category, entity, and topic -- with each view's
+  calibration and exploration terms min-max normalized at every greedy step.
 - **Two new metrics**: Entity Repetition Rate (**ERR@K**) and a Topic
   Concentration Index (**TCI@K**), designed to catch informational
   concentration that category-level diversity metrics miss.
 
 Evaluated on **EB-NeRD Large** with three base recommenders (Most Popular,
-ItemKNN, NRMS), MV-EAC is a balanced default rather than a uniformly
-dominant method: its exploration term lowers topic concentration beyond
-deterministic multi-view calibration in every base model at negligible accuracy
-cost, and against the strongest single view (Topic-EAC) it is tied on accuracy
-and entity repetition, higher on category-level diversity, and slightly higher
-on topic concentration.
+ItemKNN, NRMS) and on **MIND-small**, MV-EAC is a balanced default rather than a
+uniformly dominant method. Its exploration term lowers topic concentration and
+raises category diversity beyond deterministic multi-view calibration in every
+base model, already in the first five positions, at negligible accuracy cost.
+Deduplication, MMR and DPP do not reproduce these effects, and xQuAD matches
+MV-EAC on topic concentration but not on category diversity.
+
+**Release 1.4.0** corresponds to the second revision of the paper:
+- the per-view normalization;
+- the extended beta grid;
+- the diversification baselines;
+- the exploration-component and entity-control analyses;
+- position-sensitive metrics and per-view calibration error;
+- MIND-small.
+
+These are steps 19-33 (see `docs/pipeline.md`, "Second revision"). Steps 1-18
+reproduce the first revision (release 1.3.x).
 
 ## Quick start
 
@@ -61,6 +73,9 @@ python scripts/11_latency_benchmark.py --min-candidates 11
 python scripts/16_view_term_scales.py
 python scripts/17_unlabeled_article_rule.py
 python scripts/18_metric_construction_robustness.py
+
+# 8. the second revision of the paper (release 1.4.0): steps 19-33
+python scripts/run_all.py --with-mcf --with-nrms-variants --revision2 --with-mind
 ```
 
 Every script under `scripts/` is independently runnable and resumable --

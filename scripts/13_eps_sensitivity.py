@@ -63,7 +63,7 @@ def main() -> None:
 
     rows = []
     for model in args.models:
-        df = pd.read_parquet(C.SCORES_DIR / f"scores_{model}_val.parquet")
+        df = pd.read_parquet(C.score_path(model, "val"))
         df = df[df["impression_id"].isin(val_sub["impression_id"])]
         scores = {
             int(iid): [(int(r.article_id), float(r.score)) for r in g.sort_values("rank").itertuples(index=False)]

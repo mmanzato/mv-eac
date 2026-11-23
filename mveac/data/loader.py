@@ -189,6 +189,29 @@ def load_word2vec_embeddings(word2vec_zip: Path) -> pd.DataFrame:
     return df
 
 
+PLM_EMBEDDINGS = {
+    # name -> (zip file under RAW_DIR, parquet member suffix); both released with EB-NeRD
+    "contrastive": ("Ekstra_Bladet_contrastive_vector.zip", "contrastive_vector.parquet"),
+    "xlmr": ("FacebookAI_xlm_roberta_base.zip", "xlm_roberta_base.parquet"),
+}
+
+
+def load_plm_embeddings(name: str, raw_dir: Path) -> pd.DataFrame:
+    """Pre-trained transformer article embeddings released with EB-NeRD (768-d), in the same
+    format as :func:`load_word2vec_embeddings` (indexed by article_id, column document_vector).
+    Used only for the second revision's attempt to strengthen NRMS (paper Section 4.2)."""
+    import zipfile
+    zname, member = PLM_EMBEDDINGS[name]
+    with zipfile.ZipFile(raw_dir / zname) as z:
+        path = next(n for n in z.namelist() if n.endswith(member) and "__MACOSX" not in n)
+        with z.open(path) as f:
+            df = pd.read_parquet(f)
+    vec = [c for c in df.columns if c != "article_id"][0]
+    df = df.rename(columns={vec: "document_vector"})
+    df["article_id"] = df["article_id"].astype(int)
+    return df.set_index("article_id")
+
+
 def build_embedding_matrix(
     article_ids: list[int],
     embeddings_df: pd.DataFrame,

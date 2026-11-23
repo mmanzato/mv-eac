@@ -204,6 +204,44 @@ NRMS_VARIANTS = {
 }
 
 # ---------------------------------------------------------------------------
+# Second revision of the paper (release 1.4.0)
+# ---------------------------------------------------------------------------
+# Every beta value is eligible for selection (no BETA_CAP); the grid was extended
+# upwards until every selection was interior (paper Section 4.6).
+BETA_GRID_REV2 = BETA_GRID + [3.0, 5.0, 10.0]                 # 14 values, 70 (lambda, beta) points
+ENTITY_BETA_EXTENSION = [20.0, 50.0, 100.0, float("inf")]    # Entity-EAC only; inf = lexicographic limit
+# The paper's MV-EAC: retained views, uniform weights, per-view min-max normalization
+# of the KL and UCB terms (Eq. 10). "mv_eac" (no normalization) is MV-EAC_nom.
+PRIMARY_METHOD = "mv_eac_norm"
+# Diversification baselines: one trade-off parameter each, selected by the same MAUT.
+BASELINE_GRIDS = {
+    "mmr": [0.1, 0.3, 0.5, 0.7, 0.9, 0.95, 0.99, 1.0],
+    "xquad": [0.1, 0.3, 0.5, 0.7, 0.9, 0.95, 0.99, 1.0],
+    "dpp": [0.1, 0.3, 0.5, 0.7, 0.9, 0.95, 0.99],
+    "dedup": [0.02, 0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 0.9],
+}
+# Entity controls (paper Section 4.4): No-Entity with the other weights kept at 1/3, and
+# a category-topic model with its own (lambda, beta) selection.
+NO_ENTITY_FIXED_WEIGHTS = {"category": 1 / 3, "topic": 1 / 3}
+CAT_TOPIC_WEIGHTS = {"category": 0.5, "topic": 0.5}
+SIMPLEX_STEP = 6                                  # weight simplex with step 1/6: 28 vectors
+UCB_COMPONENTS = ("hist", "list")                 # exploration-component variants
+COMPONENT_METHODS = ["mv_eac_norm", "topic_eac", "entity_eac"]
+EPS_GRID_REV2 = [1e-4, 1e-6, 1e-8]                # KL smoothing, in addition to KL_EPSILON
+CKL_ALPHA = 0.01                                  # Steck's C_KL mixing constant
+NORMALIZATION_RULE = "no |d| >= 0.10 degradation and >= 1 |d| >= 0.10 improvement in every base model"
+
+
+def score_path(model: str, split: str, nrms_tag: str = "seed0") -> Path:
+    """Base-model score file of one split. NRMS scores carry the tag of their training run
+    (scripts/04_train_nrms.py writes ``scores_nrms_{tag}_{split}.parquet``)."""
+    if model == "nrms" or model.startswith("nrms_"):
+        tag = model[len("nrms_"):] if model.startswith("nrms_") else nrms_tag
+        return SCORES_DIR / f"scores_nrms_{tag}_{split}.parquet"
+    return SCORES_DIR / f"scores_{model}_{split}.parquet"
+
+
+# ---------------------------------------------------------------------------
 # Parallelism
 # ---------------------------------------------------------------------------
 N_WORKERS = int(os.environ.get("MVEAC_WORKERS", "4"))

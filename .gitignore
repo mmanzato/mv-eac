@@ -33,3 +33,12 @@ venv/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Second revision (release 1.4.0): large per-impression outputs are regenerable
+/data/results/rev2/lists/
+/data/results/rev2/per_impression/
+/data/results/rev2/derived/per_impression/
+/data/results/rev2/metric_construction/*.parquet
+/data/results/rev2/base_model_accuracy_per_impression.parquet
+/data/results/rev2/term_scales_rev2.csv
+/data/mind/

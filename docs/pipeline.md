@@ -363,3 +363,77 @@ reranker that is tested to reproduce `multi_view_eac` exactly under the pipeline
 | Per-view term scales (Section 5.6, Supplementary S7) | Step 16 | `view_term_scales.csv` |
 | Articles without labels (Section 6.3, Supplementary S7) | Step 17 | `unlabeled_article_rule.csv` |
 | Construction of ERR@K/TCI@K (Section 4.5.3, Supplementary S7) | Step 18 | `metric_construction_means.csv`, `metric_construction_effects.csv` |
+
+The table above maps the outputs of steps 1-18 to the **first revised manuscript** (release
+1.3.x). The second revision is mapped below.
+
+---
+
+# Second revision of the paper (release 1.4.0, steps 19-33)
+
+The second revision changes the method and adds the experiments requested by the reviewers. Its
+pipeline reuses steps 1-4 (data, profiles, base-model scores), step 7 (MCF, whose selection did
+not change) and the semantic spaces; everything else is produced by steps 19-33, under
+`$MVEAC_DATA_ROOT/results/rev2/`. Run it with
+`python scripts/run_all.py --with-mcf --with-nrms-variants --revision2 [--with-mind]`.
+
+**What changed in the method.**
+- **MV-EAC is normalized.** At every greedy step, each view's KL term and exploration bonus are
+  min-max normalized to [0, 1] over the remaining candidates (paper Eq. 10;
+  `mveac.calibration.eac.eac_rerank(..., normalize=True)`; method name `mv_eac_norm`).
+  The un-normalized reranker of releases <= 1.3.1 is kept as MV-EAC_nom (method `mv_eac`).
+- **Every beta is eligible.** The grid extends up to beta = 10 (`BETA_GRID_REV2`), and up to
+  beta = inf for Entity-EAC.
+
+`eac_rerank` with `normalize=False` reproduces `multi_view_eac` and `single_view_eac` exactly
+(`tests/test_eac_general.py`). The package reproduces the revised paper's persisted test lists
+exactly: 0 mismatches in 19,200 checked lists, covering MV-EAC, the components, epsilon and the
+four baselines.
+
+| Step | Script | What it does |
+|---|---|---|
+| 19 | `19_grid_search_rev2.py` | Validation grids. `--task eac norm baselines` covers the single-view EAC methods and MV-EAC_nom (beta up to 10, Entity-EAC up to inf), the normalized MV-EAC, and MMR/xQuAD/DPP/Dedup. After step 20a, `--task views d1 simplex components` covers the view-set re-selection, the entity controls, the 28-point weight simplex, and the hist-only/list-only exploration components. |
+| 20 | `20_select_rev2.py --stage a/b` | MAUT selection with every beta eligible (0.003 tolerance: smallest beta, then smallest lambda). Trad-Cal uses the beta = 0 slice. Stage b selects the tuned category-topic model and the components (beta by MAUT over {beta = 0, full, hist, list} at the method's lambda). It reproduces all 69 selections of the paper. |
+| 21 | `21_evaluate_test_rev2.py` | Test evaluation of the 147 configurations of the paper: 120 for the three base models and 9 for each additional NRMS run (`--models nrms_seed1 nrms_seed2 nrms_large1M`). It persists the lists and the per-impression metrics. |
+| 22 | `22_secondary_metrics.py` | From the lists: @5, position-weighted (1/log2(r+1)) and per-view C_KL metrics. |
+| 23 | `23_statistical_tests_rev2.py` | Main family of 735 tests (one Holm/BH family; the column `paper_protocol` gives the paper's letters A-P), each at impression and user level and on \|R_u\| > K. Secondary family of 1,728 tests (Holm). Pooled effects. |
+| 24 | `24_validation_decisions_rev2.py --part norm/views` | Validation: the adoption rule for the normalization, and the view-inclusion criterion with the entity controls. |
+| 25 | `25_base_model_accuracy.py` | AUC / MRR / NDCG@10 of the base models over full candidate sets. |
+| 26 | `26_view_term_scales_rev2.py` | Per-view spread and influence ("flip" rate) along the greedy path, normalized vs. nominal. |
+| 27 | `27_metric_construction_rev2.py` | Alternative constructions of ERR@K / TCI@K on the revised lists. |
+| 28 | `28_latency_rev2.py` | Reranking latency, normalized vs. nominal. |
+| 29-32 | `29_mind_prepare.py`, `30_mind_base_models.py`, `31_mind_run.py --stage grid/select/test`, `32_mind_stats.py` | MIND-small: views (category; 80 NMF topics; WikiData entities), Most Popular and NRMS, grids and MAUT, 30,000 test impressions, a 100-test Holm family. |
+| 33 | `33_make_figures_rev2.py` | Figures 2-5 of the revised paper. |
+| 04 | `04_train_nrms.py --embeddings contrastive/xlmr` | The attempt to strengthen NRMS with the pre-trained transformer embeddings released with EB-NeRD (paper Section 4.2). |
+
+Reference copies of every output behind the revised paper's tables and figures are in
+`data/results/rev2/`:
+- the selections (`best_params_rev2*.csv`) and the validation grids (`val_grid_<model>_<config>.csv`);
+- the test summaries;
+- the statistical families (`stats/`);
+- the validation decisions, the base-model accuracy and the latency;
+- the term-scale summary and the metric-construction analysis;
+- MIND-small (`mind/`).
+
+| Revised paper element | Step | File (`data/results/rev2/`) |
+|---|---|---|
+| Table 2 (base-model accuracy) | 25 | `base_model_accuracy.csv` |
+| Section 4.6, 5.2, Figure 2, Supplementary Tables S6, S16 (grid and selections) | 19, 20, 33 | `val_grid_*.csv`, `best_params_rev2.csv` |
+| Table 4 (main results), Table 5 (MV-EAC_nom, baselines, Dedup) | 21, 23 | `test_summary_rev2.csv`, `stats/stats_rev2_full.csv` (protocols A-E, L, M) |
+| Section 5.3.1 (\|R_u\| > K), position-sensitive metrics; Table 6 (regimes); Section 5.3.8 (C_KL); Supplementary Tables S3, S14-S15 | 21-23 | `stats/ru_gtK_means_rev2.csv`, `stats/stats_rev2_secondary.csv`, `secondary_metrics_summary.csv` |
+| Section 5.3.5 (exploration components), Supplementary Table S10 | 19-21, 23 | `best_params_rev2b.csv`, `stats/stats_rev2_full.csv` (protocol N) |
+| Section 5.4, Table 7, Figure 4 (ablation, entity controls); Supplementary Table S2 | 21, 23, 24, 33 | `stats/pooled_rev2.csv`, `val_views_norm.csv`, `stats/stats_rev2_full.csv` (protocols F, I, O) |
+| Section 5.6, Figure 5 (weight sweep), Supplementary Table S11 (simplex) | 19, 21, 23, 33 | `val_grid_<model>_norm_simplex.csv`, `stats/stats_rev2_full.csv` (protocol G) |
+| Section 5.8 (normalization, epsilon); Supplementary Tables S7, S9 | 21, 23, 24 | `val_compare_norm.csv`, `stats/stats_rev2_full.csv` (protocols M, P) |
+| Supplementary Table S17 (NRMS runs) | 21, 23 | `test_summary_rev2_nrms_variants.csv`, `stats/stats_rev2_full.csv` (protocols J, K) |
+| Sections 3.5, 5.6, Supplementary Section S7 (per-view influence) | 26 | `term_scales_rev2_summary.csv` |
+| Section 4.5, Supplementary Section S7 (construction of ERR/TCI) | 27 | `metric_construction/` |
+| Section 6.2, Supplementary Section S7 (latency) | 28 | `latency_rev2.csv` |
+| Section 5.9, Table 9, Supplementary Section S11, Tables S12-S13 (MIND-small) | 29-32 | `mind/` |
+
+**Exact reproduction of the NRMS numbers.** NRMS training on GPU/MPS is not bit-deterministic.
+The scores of the primary run are in `data/reference_scores/`, and those of the MIND-small NRMS
+are in `data/reference_scores/mind/` (copy them to `$MVEAC_DATA_ROOT/mind/scores/`).
+The scores of the three additional NRMS runs of the second revision (`scores_nrms_{seed1,seed2,large1M}_{val,test}.parquet`,
+about 150 MB in total) are attached as assets to the GitHub release v1.4.0. Copy them to
+`$MVEAC_DATA_ROOT/processed/scores/` to rerank exactly the paper's lists for those runs.

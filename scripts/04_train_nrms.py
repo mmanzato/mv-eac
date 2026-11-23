@@ -17,6 +17,9 @@ Usage:
     python scripts/04_train_nrms.py --tag seed1 --seed 1
     python scripts/04_train_nrms.py --tag seed2 --seed 2
     python scripts/04_train_nrms.py --tag large1M --seed 0 --train-sample 1000000
+    # second revision: attempt to strengthen NRMS with pre-trained transformer embeddings
+    python scripts/04_train_nrms.py --tag contrastive_1M --embeddings contrastive --train-sample 1000000
+    python scripts/04_train_nrms.py --tag xlmr_1M --embeddings xlmr --train-sample 1000000
 
 Output (under $MVEAC_DATA_ROOT/):
     processed/scores/scores_nrms_{tag}_val.parquet / _test.parquet
@@ -59,7 +62,23 @@ def _save_scores(scores: dict[int, list[tuple[int, float]]], tag: str, split: st
     logging.info("Saved %s (%d impressions)", path.name, len(scores))
 
 
-def run(tag: str, seed: int, train_sample: int) -> None:
+def _val_auc(scores: dict, behaviors: pd.DataFrame) -> float:
+    """Mean per-impression AUC over all candidates (ties: average ranks; NaN scores -> impression minimum)."""
+    from scipy.stats import rankdata
+    clicks = {int(i): set(int(x) for x in c) for i, c in zip(behaviors.impression_id, behaviors.article_ids_clicked)}
+    aucs = []
+    for iid, ranked in scores.items():
+        y = np.array([a in clicks[int(iid)] for a, _ in ranked], int)
+        s = np.array([v for _, v in ranked], float)
+        s = np.zeros_like(s) if np.isnan(s).all() else np.where(np.isnan(s), np.nanmin(s), s)
+        p, n = y.sum(), len(y) - y.sum()
+        if p and n:
+            r = rankdata(s)
+            aucs.append((r[y == 1].sum() - p * (p + 1) / 2) / (p * n))
+    return float(np.mean(aucs))
+
+
+def run(tag: str, seed: int, train_sample: int, embeddings: str = "word2vec") -> None:
     log_path = C.LOGS_DIR / f"nrms_{tag}.log"
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
@@ -77,8 +96,12 @@ def run(tag: str, seed: int, train_sample: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
 
-    log.info("Loading Word2Vec embeddings ...")
-    w2v_df = load_word2vec_embeddings(C.WORD2VEC_ZIP)
+    log.info("Loading %s article embeddings ...", embeddings)
+    if embeddings == "word2vec":
+        w2v_df = load_word2vec_embeddings(C.WORD2VEC_ZIP)
+    else:   # second revision: pre-trained transformer embeddings (paper Section 4.2)
+        from mveac.data.loader import load_plm_embeddings
+        w2v_df = load_plm_embeddings(embeddings, C.RAW_DIR)
     articles = load_articles(C.EBNERD_LARGE_ZIP)
     emb_matrix, id2idx = build_embedding_matrix(articles["article_id"].tolist(), w2v_df)
     log.info("Embedding matrix: %d x %d", *emb_matrix.shape)
@@ -119,7 +142,9 @@ def run(tag: str, seed: int, train_sample: int) -> None:
 
     if not val_path.exists():
         log.info("Scoring val (%d impressions) ...", len(val_sub))
-        _save_scores(model.score_all_impressions(val_sub, eval_history), tag, "val")
+        val_scores = model.score_all_impressions(val_sub, eval_history)
+        _save_scores(val_scores, tag, "val")
+        log.info("Validation AUC (all candidates) = %.4f", _val_auc(val_scores, val_sub.drop_duplicates("impression_id")))
     if not test_path.exists():
         log.info("Scoring test (%d impressions) ...", len(test_sub))
         _save_scores(model.score_all_impressions(test_sub, eval_history), tag, "test")
@@ -135,5 +160,8 @@ if __name__ == "__main__":
                          "seed0 run used sample seed 42 with an unseeded initialization; its scores "
                          "are provided in data/reference_scores/.")
     ap.add_argument("--train-sample", type=int, default=C.NRMS_TRAIN_SAMPLE)
+    ap.add_argument("--embeddings", choices=["word2vec", "contrastive", "xlmr"], default="word2vec",
+                    help="Frozen article representation. The second revision's attempt to strengthen NRMS "
+                         "used --embeddings contrastive / xlmr with --train-sample 1000000 (paper Section 4.2).")
     args = ap.parse_args()
-    run(args.tag, args.seed, args.train_sample)
+    run(args.tag, args.seed, args.train_sample, args.embeddings)

@@ -1,8 +1,8 @@
 """
 Statistical significance testing: paired Wilcoxon signed-rank tests, Cohen's
 d effect sizes, and multiplicity correction across the whole family of
-comparisons the paper makes (465 tests in one family across all research
-questions, see scripts/09_statistical_tests.py), plus a user-level clustered re-test to check that impression-level
+comparisons the paper makes (465 tests in the first revision, scripts/09_statistical_tests.py;
+735 tests in the second revision, scripts/24_statistical_tests_rev2.py), plus a user-level clustered re-test to check that impression-level
 non-independence (a user contributes ~1.7 impressions on average to the test
 subsample) is not driving the significance pattern on its own.
 """
@@ -13,6 +13,18 @@ import pandas as pd
 from scipy import stats
 
 
+# Paired differences smaller than this are treated as exact ties. Metric values read back
+# from CSV (e.g. the published MCF per-impression files) carry ~1e-16 floating-point noise;
+# without the tolerance, Wilcoxon would treat that noise as real differences.
+ZERO_TOL = 1e-9
+
+
+def _clean(diff: np.ndarray) -> np.ndarray:
+    diff = np.asarray(diff, dtype=float)
+    diff = diff[np.isfinite(diff)]
+    return np.where(np.abs(diff) < ZERO_TOL, 0.0, diff)
+
+
 def cohens_d(diff: np.ndarray) -> float:
     """Cohen's d_z for a paired difference: mean difference / its own standard deviation.
 
@@ -20,7 +32,7 @@ def cohens_d(diff: np.ndarray) -> float:
     finite values remain, and 0.0 if the finite values are all identical
     (zero variance).
     """
-    diff = diff[np.isfinite(diff)]
+    diff = _clean(diff)
     if len(diff) < 2:
         return float("nan")
     sd = diff.std(ddof=1)
@@ -34,7 +46,7 @@ def wilcoxon_p(diff: np.ndarray) -> float:
     finite, non-identical values -- the test is undefined in that case, and
     treating it as "not significant" is the conservative choice.
     """
-    diff = diff[np.isfinite(diff)]
+    diff = _clean(diff)
     if len(diff) < 2 or np.allclose(diff, 0):
         return 1.0
     try:

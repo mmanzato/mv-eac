@@ -59,7 +59,7 @@ def _load_shared(models: list[str], split: str) -> None:
     behaviors = pd.read_parquet(C.PROC_DIR / f"{split}_sub.parquet")
     scores = {}
     for model in models:
-        df = pd.read_parquet(C.SCORES_DIR / f"scores_{model}_{split}.parquet")
+        df = pd.read_parquet(C.score_path(model, split))
         scores[model] = {
             int(iid): [(int(r.article_id), float(r.score)) for r in g.sort_values("rank").itertuples(index=False)]
             for iid, g in df.groupby("impression_id")

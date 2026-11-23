@@ -16,16 +16,22 @@ mv-eac/
 │   │   ├── traditional.py      shared KL-divergence primitives
 │   │   ├── eac.py              Traditional calibration, single/multi-view EAC,
 │   │   │                       and rerank_all() -- the one dispatch function every
-│   │   │                       pipeline script calls to rerank a set of impressions
+│   │   │                       pipeline script calls to rerank a set of impressions;
+│   │   │                       since 1.4.0 also eac_rerank()/rerank_all_general(): the
+│   │   │                       general greedy EAC with per-view normalization, the
+│   │   │                       exploration components and beta = inf
+│   │   ├── baselines.py        MMR, xQuAD, DPP and the Dedup filter (1.4.0)
 │   │   └── mcf.py              the Minimum-Cost-Flow baseline (ortools)
 │   ├── metrics/
 │   │   ├── accuracy.py         NDCG@K
 │   │   ├── diversity.py        ILD@K, Entropy@K, Jaccard-ILD
-│   │   └── concentration.py    ERR@K, TCI@K (the paper's two proposed metrics)
+│   │   ├── concentration.py    ERR@K, TCI@K (the paper's two proposed metrics)
+│   │   └── position.py         top-5 / position-weighted variants and C_KL (1.4.0)
 │   └── evaluation/
 │       ├── metrics_runner.py   aggregation glue: per-impression + mean-over-impressions
 │       ├── maut.py             MAUT hyperparameter selection
 │       └── stats.py            Wilcoxon, Cohen's d, Holm-Bonferroni / BH correction
+│   └── revision2.py            shared state and configuration specs of steps 19-33 (1.4.0)
 ├── scripts/                   the numbered, resumable pipeline (see docs/pipeline.md)
 ├── tests/                     unit tests + a check against the paper's own numbers
 └── docs/                      this file, data.md, pipeline.md

@@ -10,3 +10,16 @@ sample with seed 42 but did not seed the parameter initialization, so retraining
 cannot reproduce these exact scores. To rerank exactly the paper's NRMS lists,
 copy both files to `$MVEAC_DATA_ROOT/processed/scores/` and skip the default
 (`--tag seed0`) run of `scripts/04_train_nrms.py`.
+
+## MIND-small (release 1.4.0)
+
+`mind/scores_nrms_{val,test}.parquet` are the NRMS scores behind the MIND-small results of the
+second revision (paper Section 5.9). That training run (seed 0, Apple MPS backend) is not
+bit-deterministic. To rerank exactly the paper's MIND lists, copy both files to
+`$MVEAC_DATA_ROOT/mind/scores/` and skip the NRMS part of `scripts/30_mind_base_models.py`.
+
+## Additional NRMS runs (release 1.4.0)
+
+The val/test scores of the three additional NRMS runs of the second revision (seed1, seed2,
+large1M) are about 150 MB in total. They are attached as assets to the GitHub release v1.4.0
+rather than committed here.

@@ -50,11 +50,18 @@ if _TORCH_AVAILABLE:
 
         For every clicked article in an impression, one training example is
         created: the candidate set is the clicked article plus ``neg_ratio``
-        negatives sampled from the impression's non-clicked articles (with
-        replacement if there are fewer negatives available than requested).
+        negatives taken from the impression's non-clicked articles (repeated
+        cyclically if there are fewer negatives available than requested).
         The clicked article is always placed at candidate position 0, so
         training reduces to a ``neg_ratio + 1``-way categorical cross-entropy
         classification of "which candidate was clicked".
+
+        Release 1.4.0: the samples store article *indices* (the last row of the
+        padded matrix is the zero vector) and the vectors are gathered in
+        ``__getitem__``. Releases <= 1.3.1 stored a (max_history x dim) float
+        matrix per impression, about 60 GB for the 1,000,000-impression NRMS run
+        with 300-d vectors (150 GB with 768-d embeddings). The tensors yielded
+        are identical.
         """
 
         def __init__(
@@ -66,26 +73,24 @@ if _TORCH_AVAILABLE:
             max_history: int,
             neg_ratio: int,
         ) -> None:
-            self.samples: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
-            dim = embedding_matrix.shape[1]
-            zero_vec = np.zeros(dim, dtype=np.float32)
-
-            for row in behaviors.itertuples(index=False):
-                uid = int(row.user_id)
-                clicked = set(int(x) for x in row.article_ids_clicked)
-                inview = [int(x) for x in row.article_ids_inview]
+            self.E = np.vstack([embedding_matrix.astype(np.float32),
+                                np.zeros((1, embedding_matrix.shape[1]), np.float32)])
+            zero = len(self.E) - 1
+            hist_rows, cand_rows = [], []
+            for uid, clk, inv in zip(behaviors["user_id"], behaviors["article_ids_clicked"],
+                                     behaviors["article_ids_inview"]):
+                clicked = set(int(x) for x in clk)
+                inview = [int(x) for x in inv]
                 positives = [a for a in inview if a in clicked]
                 negatives = [a for a in inview if a not in clicked]
                 if not positives:
                     continue
-
-                hist = user_history.get(uid, [])[-max_history:]
-                hist_vecs = np.zeros((max_history, dim), dtype=np.float32)
+                hist = user_history.get(int(uid), [])[-max_history:]
+                h = np.full(max_history, zero, np.int32)
                 for i, aid in enumerate(hist):
                     idx = id2idx.get(aid)
                     if idx is not None:
-                        hist_vecs[i] = embedding_matrix[idx]
-
+                        h[i] = idx
                 for pos in positives:
                     pos_idx = id2idx.get(pos)
                     if pos_idx is None:
@@ -93,23 +98,22 @@ if _TORCH_AVAILABLE:
                     neg_sample = negatives[:neg_ratio]
                     if negatives and len(neg_sample) < neg_ratio:
                         neg_sample = (negatives * (neg_ratio // len(negatives) + 1))[:neg_ratio]
-                    neg_vecs = np.array(
-                        [embedding_matrix[id2idx[n]] if n in id2idx else zero_vec for n in neg_sample],
-                        dtype=np.float32,
-                    )
-                    if len(neg_vecs) == 0:
+                    if len(neg_sample) == 0:
                         continue
-                    cand_vecs = np.vstack([embedding_matrix[pos_idx][None], neg_vecs])
-                    labels = np.zeros(len(cand_vecs), dtype=np.float32)
-                    labels[0] = 1.0
-                    self.samples.append((hist_vecs, cand_vecs, labels))
+                    hist_rows.append(h)
+                    cand_rows.append(np.array([pos_idx] + [id2idx.get(n, zero) for n in neg_sample], np.int32))
+            self.H = np.stack(hist_rows) if hist_rows else np.zeros((0, max_history), np.int32)
+            self.C = cand_rows   # the candidate count can be < 1 + neg_ratio when few negatives exist
+            self.samples = self.C
 
         def __len__(self) -> int:
-            return len(self.samples)
+            return len(self.C)
 
         def __getitem__(self, idx: int):
-            h, c, y = self.samples[idx]
-            return torch.FloatTensor(h), torch.FloatTensor(c), torch.FloatTensor(y)
+            c = self.C[idx]
+            labels = np.zeros(len(c), np.float32)
+            labels[0] = 1.0
+            return torch.from_numpy(self.E[self.H[idx]]), torch.from_numpy(self.E[c]), torch.from_numpy(labels)
 
 
 # ---------------------------------------------------------------------------

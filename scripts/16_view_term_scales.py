@@ -53,7 +53,7 @@ def main() -> None:
     for model in C.MODELS:
         sel = best[(best.model == model) & (best.method == "mv_eac")].iloc[0]
         lam, beta = float(sel.eac_lambda), float(sel.eac_beta)
-        scores = pd.read_parquet(C.SCORES_DIR / f"scores_{model}_val.parquet")
+        scores = pd.read_parquet(C.score_path(model, "val"))
         sizes = scores.groupby("impression_id").size()
         sample = rng.choice(sizes[sizes > C.K].index.values, args.n_impressions, replace=False)
         scores = scores[scores.impression_id.isin(sample)]

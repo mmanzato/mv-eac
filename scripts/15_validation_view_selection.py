@@ -89,7 +89,7 @@ def _load_shared(models: list[str], n_impressions: int | None) -> None:
         val_sub = val_sub.head(n_impressions)
     scores = {}
     for model in models:
-        df = pd.read_parquet(C.SCORES_DIR / f"scores_{model}_val.parquet")
+        df = pd.read_parquet(C.score_path(model, "val"))
         df = df[df["impression_id"].isin(val_sub["impression_id"])]
         scores[model] = {
             int(iid): [(int(r.article_id), float(r.score)) for r in g.sort_values("rank").itertuples(index=False)]

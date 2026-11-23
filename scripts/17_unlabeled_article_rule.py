@@ -76,7 +76,7 @@ def main() -> None:
     best = pd.read_csv(C.RESULTS_DIR / "best_params.csv")
     scores = {}
     for model in C.MODELS:
-        df = pd.read_parquet(C.SCORES_DIR / f"scores_{model}_val.parquet")
+        df = pd.read_parquet(C.score_path(model, "val"))
         scores[model] = {int(i): [(int(r.article_id), float(r.score)) for r in g.sort_values("rank").itertuples(index=False)]
                          for i, g in df.groupby("impression_id")}
     _SHARED.update(vocabs=vocabs, maps=maps, catvec=catvec, profiles=profiles, val_sub=val_sub, scores=scores,

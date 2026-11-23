@@ -248,6 +248,153 @@ def multi_view_eac(
 
 
 # ---------------------------------------------------------------------------
+# General greedy reranker (release 1.4.0, second revision of the paper)
+# ---------------------------------------------------------------------------
+
+def _minmax_active(x: np.ndarray, active: np.ndarray) -> np.ndarray:
+    """Min-max normalize ``x`` over the still-active candidates (paper Eq. 10).
+
+    Inactive entries are irrelevant (they are masked before the argmax). When every
+    active candidate has the same value the term carries no information at this step
+    and is set to zero."""
+    xa = x[active]
+    lo, hi = xa.min(), xa.max()
+    if hi - lo <= 0:
+        return np.zeros_like(x)
+    return (x - lo) / (hi - lo)
+
+
+UCB_MODES = ("full", "hist", "list")
+
+
+def eac_rerank(
+    candidates: list[tuple[int, float]],
+    user_profiles: dict[str, np.ndarray],
+    article_maps: dict[str, dict[int, list[str]]],
+    vocabs: dict[str, list[str]],
+    weights: dict[str, float],
+    lam: float,
+    beta: float,
+    k: int,
+    epsilon: float = 1e-10,
+    normalize: bool = True,
+    ucb_mode: str = "full",
+) -> list[tuple[int, float]]:
+    """General greedy EAC over one or several weighted views.
+
+    This is the reranker of the revised paper. With one view of weight 1 it is the
+    single-view EAC; with ``beta=0`` it is traditional calibration (Trad-Cal); with the
+    retained views and uniform weights it is MV-EAC.
+
+    ``normalize=True`` (the paper's MV-EAC, Section 3.5, Eq. 10): at every greedy step
+    each view's KL term and exploration bonus are min-max normalized to [0, 1] over the
+    remaining candidates before the weighted combination. ``normalize=False`` gives the
+    un-normalized formulation MV-EAC_nom of releases <= 1.3.1 and reproduces
+    :func:`multi_view_eac` / :func:`single_view_eac` exactly (tests/test_eac_general.py).
+    For a single view, min-max normalization of the KL term is not equivalent to the raw
+    term, so single-view EAC is always run with ``normalize=False`` in the paper.
+
+    ``ucb_mode`` selects the exploration bonus (paper Section 5.3.5): ``"full"`` is
+    Eq. 3, ``(1 - P_u^v(x)) * sqrt(ln(T+1) / (N_v(x)+1))``; ``"hist"`` keeps only the
+    historical-novelty factor ``1 - P_u^v(x)``; ``"list"`` keeps only the in-list
+    coverage factor ``sqrt(ln(T+1) / (N_v(x)+1))``. At the first position (T = 0) the
+    bonus is zero in every mode.
+
+    ``beta = float("inf")`` is the lexicographic limit of the objective (used to show
+    that Entity-EAC's selection is interior): among the active candidates with the
+    largest bonus (ties within 1e-12) the best ``(1-lam) Rel - lam KL`` is chosen.
+    """
+    if ucb_mode not in UCB_MODES:
+        raise ValueError(f"ucb_mode must be one of {UCB_MODES}, got {ucb_mode!r}")
+    views = [v for v in user_profiles if weights.get(v, 0.0) > 0]
+    candidate_ids = [cid for cid, _ in candidates]
+    n_candidates = len(candidate_ids)
+    value_index = {v: {val: i for i, val in enumerate(vocabs[v])} for v in views}
+    article_matrix = {
+        v: _build_article_matrix(candidate_ids, article_maps[v], value_index[v], len(vocabs[v])).astype(np.float64)
+        for v in views
+    }
+    relevance = np.array(minmax_normalize([s for _, s in candidates]), dtype=np.float64)
+    list_counts = {v: np.zeros(len(vocabs[v])) for v in views}
+    exposure_counts = {v: np.zeros(len(vocabs[v])) for v in views}
+    n_values_per_article = {v: article_matrix[v].sum(axis=1) for v in views}
+    active = np.ones(n_candidates, dtype=bool)
+    lexicographic = bool(np.isinf(beta))
+    selected: list[tuple[int, float]] = []
+    t = 0
+
+    for _ in range(min(k, n_candidates)):
+        kl_total = np.zeros(n_candidates)
+        ucb_total = np.zeros(n_candidates)
+        for v in views:
+            w = weights[v]
+            candidate_totals = list_counts[v][None, :] + article_matrix[v]
+            denom = candidate_totals.sum(axis=1, keepdims=True)
+            kl = _kl_all(user_profiles[v], candidate_totals / np.where(denom > 0, denom, 1.0), epsilon)
+            kl_total += w * (_minmax_active(kl, active) if normalize else kl)
+            if beta > 0 and t > 0:
+                if ucb_mode == "full":
+                    per_value = (1.0 - user_profiles[v]) * np.sqrt(np.log(t + 1) / (exposure_counts[v] + 1))
+                elif ucb_mode == "hist":
+                    per_value = 1.0 - user_profiles[v]
+                else:
+                    per_value = np.sqrt(np.log(t + 1) / (exposure_counts[v] + 1))
+                safe = np.where(n_values_per_article[v] > 0, n_values_per_article[v], 1.0)
+                ucb = np.where(n_values_per_article[v] > 0, (article_matrix[v] @ per_value) / safe, 0.0)
+                ucb_total += w * (_minmax_active(ucb, active) if normalize else ucb)
+
+        rest = (1.0 - lam) * relevance - lam * kl_total
+        if lexicographic:
+            bonus = np.where(active, ucb_total, -np.inf)
+            scores = np.where(active & (bonus >= bonus.max() - 1e-12), rest, -np.inf)
+        else:
+            scores = rest + beta * ucb_total
+            scores[~active] = -np.inf
+        # first maximum: ties go to the candidate ranked higher by the base recommender
+        best = int(np.argmax(scores))
+        if not active[best]:
+            break
+        selected.append((candidate_ids[best], float(scores[best])))
+        for v in views:
+            list_counts[v] += article_matrix[v][best]
+            exposure_counts[v] += article_matrix[v][best]
+        active[best] = False
+        t += 1
+    return selected
+
+
+def rerank_all_general(
+    base_scores: dict[int, list[tuple[int, float]]],
+    behaviors: pd.DataFrame,
+    user_profiles: dict[str, dict[int, np.ndarray]],
+    article_maps: dict[str, dict[int, list[str]]],
+    vocabs: dict[str, list[str]],
+    weights: dict[str, float],
+    lam: float,
+    beta: float,
+    k: int,
+    epsilon: float = 1e-10,
+    normalize: bool = True,
+    ucb_mode: str = "full",
+) -> dict[int, list[tuple[int, float]]]:
+    """:func:`eac_rerank` on every impression, with the same cold-start fallback as
+    :func:`rerank_all` (uniform profile for a user without history; impressions of
+    unknown users keep the base ranking)."""
+    impression_to_user = dict(zip(behaviors["impression_id"].astype(int), behaviors["user_id"].astype(int)))
+    views = [v for v in user_profiles if weights.get(v, 0.0) > 0]
+    results: dict[int, list[tuple[int, float]]] = {}
+    for imp_id, candidates in base_scores.items():
+        uid = impression_to_user.get(int(imp_id))
+        if uid is None:
+            results[int(imp_id)] = candidates[:k]
+            continue
+        profiles = {v: user_profiles[v].get(uid, np.ones(len(vocabs[v])) / len(vocabs[v])) for v in views}
+        results[int(imp_id)] = eac_rerank(candidates, profiles, article_maps, vocabs, weights, lam, beta, k,
+                                          epsilon, normalize, ucb_mode)
+    return results
+
+
+# ---------------------------------------------------------------------------
 # Dispatch: rerank every impression for a given method
 # ---------------------------------------------------------------------------
 
@@ -279,8 +426,10 @@ def rerank_all(
     ``method`` is one of ``"original"`` (pass the base recommender's own
     ranking through unchanged), ``"traditional"`` (single-view Trad-Cal on
     category), one of the single-view EAC methods in ``_SINGLE_VIEW_METHODS``,
-    or ``"mv_eac"`` (Multi-View EAC; ``weights`` defaults to
-    ``mveac.config.MV_UNIFORM_WEIGHTS`` when omitted).
+    ``"mv_eac"`` (the un-normalized Multi-View EAC of releases <= 1.3.1, MV-EAC_nom in
+    the revised paper), or ``"mv_eac_norm"`` / ``"tradcal_mv_norm"`` (the revised
+    paper's MV-EAC with per-view normalization, and its beta=0 counterpart Trad-Cal-MV);
+    ``weights`` defaults to ``mveac.config.MV_UNIFORM_WEIGHTS`` when omitted.
 
     A user missing a profile for the relevant view (e.g. no reading history)
     falls back to the uniform distribution over that view's vocabulary --
@@ -299,6 +448,12 @@ def rerank_all(
         uid = impression_to_user.get(imp_id)
         if uid is None or method == "original":
             results[imp_id] = candidates[:k]
+            continue
+
+        if method in ("mv_eac_norm", "tradcal_mv_norm"):
+            profiles = {v: user_profiles[v].get(uid, np.ones(len(vocabs[v])) / len(vocabs[v])) for v in user_profiles}
+            results[imp_id] = eac_rerank(candidates, profiles, article_maps, vocabs, weights, lam,
+                                         0.0 if method == "tradcal_mv_norm" else beta, k, epsilon, normalize=True)
             continue
 
         if method == "mv_eac":

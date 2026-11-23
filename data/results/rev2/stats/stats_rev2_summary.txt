@@ -1,0 +1,22 @@
+Main family: 735 tests | sig uncorr 712  Holm 702  BH 712  user-level Holm 704
+
+  A_EAC_vs_TradCal           Holm  87/90  |d_imp|>=.10  47 |d_user|>=.10  54
+  B_MCF_vs_TradCal           Holm  46/60  |d_imp|>=.10  20 |d_user|>=.10  21
+  C_EAC_vs_MCF               Holm  56/60  |d_imp|>=.10  33 |d_user|>=.10  34
+  D_MV_vs_Original           Holm  15/15  |d_imp|>=.10  13 |d_user|>=.10  13
+  T_TradCalMV_vs_Original    Holm  15/15  |d_imp|>=.10  13 |d_user|>=.10  13
+  E_Ablation_vs_MV           Holm  44/45  |d_imp|>=.10  22 |d_user|>=.10  22
+  F_Sweep_vs_MV              Holm  75/75  |d_imp|>=.10  41 |d_user|>=.10  43
+  G_MV_vs_SingleView         Holm  45/45  |d_imp|>=.10  33 |d_user|>=.10  33
+  H_SentimentAddBack         Holm  14/15  |d_imp|>=.10   6 |d_user|>=.10   6
+  K_MV_vs_Baselines          Holm  59/60  |d_imp|>=.10  38 |d_user|>=.10  39
+  L_Norm_vs_Nominal          Holm  14/15  |d_imp|>=.10   4 |d_user|>=.10   6
+  M_UCB_Components           Holm  85/90  |d_imp|>=.10  37 |d_user|>=.10  38
+  N_D1_EntityControls        Holm  27/30  |d_imp|>=.10  13 |d_user|>=.10  13
+  O_Epsilon                  Holm  45/45  |d_imp|>=.10  35 |d_user|>=.10  39
+  I_NRMS_Variants            Holm  15/15  |d_imp|>=.10  12 |d_user|>=.10  12
+  J_NRMS_Variant_Ablation    Holm  60/60  |d_imp|>=.10  33 |d_user|>=.10  33
+
+Lose significance under Holm: 10 (max |d| 0.014)
+Verdict changes at user level: 10; max |d_imp| 0.072
+Holm-significant but |d| < 0.10: 302

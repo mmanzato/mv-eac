@@ -83,3 +83,31 @@ Ekstra_Bladet_word2vec/document_vector.parquet
 Budget roughly **35-40 GB** free disk space for a full run with the primary
 NRMS instance only; add another ~10 GB per additional NRMS reproducibility
 variant (`--with-nrms-variants` in `scripts/run_all.py`).
+
+## 5. Additional data for the second revision (release 1.4.0)
+
+**Pre-trained transformer embeddings (optional).** These are only needed for the attempt to
+strengthen NRMS (`scripts/04_train_nrms.py --embeddings contrastive|xlmr`, paper Section 4.2).
+Place the two embedding archives released with EB-NeRD next to the others, without extracting
+them:
+
+```
+$MVEAC_DATA_ROOT/raw/
+    ├── Ekstra_Bladet_contrastive_vector.zip   (contrastive_vector.parquet, 768-d)
+    └── FacebookAI_xlm_roberta_base.zip         (xlm_roberta_base.parquet, 768-d)
+```
+
+**MIND-small (optional).** Needed for steps 29-32 (paper Section 5.9). Download the official
+MIND-small archives (Wu et al., 2020; https://msnews.github.io). The original Azure links can be
+unavailable; the same zips are mirrored by the Microsoft Recommenders project. Then **extract**
+them, unlike the EB-NeRD archives:
+
+```
+$MVEAC_DATA_ROOT/mind/raw/
+    ├── MINDsmall_train/   (news.tsv, behaviors.tsv, entity_embedding.vec, relation_embedding.vec)
+    ├── MINDsmall_dev/     (same files)
+    └── utils/             (word_dict_all.pkl, embedding_all.npy from MINDsmall_utils.zip)
+```
+
+Step 29 writes `$MVEAC_DATA_ROOT/mind/processed/`, and steps 30-32 write
+`$MVEAC_DATA_ROOT/mind/{scores,grids,test}/`. All of it takes less than 2 GB.
